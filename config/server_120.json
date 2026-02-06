@@ -1,0 +1,18 @@
+{
+  "mode": "ffa",
+  "match_time_minutes": 120,
+  "port": 7777,
+  "map": {
+    "size_km2": 8,
+    "chunks_x": 88,
+    "chunks_z": 88,
+    "chunk_size": 32,
+    "world_height": 256,
+    "preview_chunks": 8,
+    "draw_distance_chunks": 8
+  },
+  "max_players": 64,
+  "team_size": 1,
+  "respawns": 2,
+  "loot_drop": "all"
+}

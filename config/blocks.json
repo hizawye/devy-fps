@@ -1,0 +1,8 @@
+{
+  "blocks": [
+    { "id": 0, "name": "air", "hardness": 0 },
+    { "id": 1, "name": "dirt", "hardness": 1 },
+    { "id": 2, "name": "stone", "hardness": 3 },
+    { "id": 3, "name": "grass", "hardness": 1 }
+  ]
+}

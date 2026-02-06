@@ -1,0 +1,8 @@
+/build/
+/out/
+/.cache/
+/.vscode/
+compile_commands.json
+vcpkg_installed/
+*.user
+*.swp
