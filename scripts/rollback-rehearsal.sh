@@ -7,6 +7,15 @@ preset="${1:-debug-vcpkg}"
 out_dir="${2:-${repo_root}/artifacts/releases/rollback-rehearsal/$(date +%Y%m%d-%H%M%S)}"
 clients="${3:-4}"
 phase_seconds="${4:-3}"
+config_source_path="${5:-}"
+
+if [[ -n "${config_source_path}" ]] && [[ ! -f "${config_source_path}" && -f "${repo_root}/${config_source_path}" ]]; then
+  config_source_path="${repo_root}/${config_source_path}"
+fi
+if [[ -n "${config_source_path}" ]] && [[ ! -f "${config_source_path}" ]]; then
+  echo "Config source file not found: ${config_source_path}" >&2
+  exit 1
+fi
 
 baseline_pkg_dir="${out_dir}/baseline-package"
 candidate_pkg_dir="${out_dir}/candidate-package"
@@ -48,6 +57,11 @@ candidate_root="$(extract_archive "${candidate_archive}" "${candidate_extract_di
 if [[ -z "${baseline_root}" || -z "${candidate_root}" ]]; then
   echo "Could not determine extracted package roots" >&2
   exit 1
+fi
+
+if [[ -n "${config_source_path}" ]]; then
+  cp "${config_source_path}" "${baseline_root}/config/server_test.json"
+  cp "${config_source_path}" "${candidate_root}/config/server_test.json"
 fi
 
 run_phase() {
@@ -117,6 +131,7 @@ fi
   echo "candidate_archive=${candidate_archive}"
   echo "clients=${clients}"
   echo "phase_seconds=${phase_seconds}"
+  echo "config_source_path=${config_source_path:-package_default}"
   echo "candidate_port=${candidate_port}"
   echo "candidate_server_status=${candidate_server_status}"
   echo "candidate_load_status=${candidate_load_status}"

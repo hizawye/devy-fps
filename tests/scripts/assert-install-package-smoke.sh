@@ -8,6 +8,7 @@ fi
 
 repo_root="$1"
 out_dir="${repo_root}/artifacts/releases/ctest-install-smoke"
+config_path="${DEVY_TEST_CONFIG_PATH:-}"
 rm -rf "${out_dir}"
 
 DEVY_SKIP_BUILD=1 "${repo_root}/scripts/install-package-smoke.sh" \
@@ -15,7 +16,8 @@ DEVY_SKIP_BUILD=1 "${repo_root}/scripts/install-package-smoke.sh" \
   "${out_dir}" \
   4 \
   3 \
-  3
+  3 \
+  "${config_path}"
 
 summary="${out_dir}/summary.txt"
 if [[ ! -f "${summary}" ]]; then

@@ -51,7 +51,8 @@ add_test(NAME client.unit COMMAND client_unit_tests)
 
 add_test(
   NAME server.smoke
-  COMMAND $<TARGET_FILE:devy_server> ${CMAKE_SOURCE_DIR}/config/server_test.json --smoke-seconds 1
+  COMMAND ${CMAKE_SOURCE_DIR}/tests/scripts/assert-server-smoke.sh
+          ${CMAKE_SOURCE_DIR}
 )
 set_tests_properties(server.smoke PROPERTIES TIMEOUT 15)
 

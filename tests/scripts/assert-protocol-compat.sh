@@ -8,10 +8,11 @@ fi
 
 repo_root="$1"
 out_dir="${repo_root}/artifacts/releases/ctest-protocol-compat"
+config_path="${DEVY_TEST_CONFIG_PATH:-${repo_root}/config/server_test.json}"
 rm -rf "${out_dir}"
 
 "${repo_root}/scripts/protocol-compat-check.sh" \
-  "${repo_root}/config/server_test.json" \
+  "${config_path}" \
   6 \
   4 \
   "${out_dir}" \

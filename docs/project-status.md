@@ -288,6 +288,31 @@
   - progress counters: `chaos_cycles_completed=26`, `restart_runs_completed=4`,
   - summaries still pending while run is active (`run_summary=missing`, `soak_summary=missing`).
 - Added `/artifacts/` to `.gitignore` so local endurance/release evidence output does not pollute baseline release-prep commits.
+- Completed TODO-follow regression hardening for concurrent endurance execution:
+  - switched `server.smoke` CTest to wrapper `tests/scripts/assert-server-smoke.sh` and added runtime config override support via `DEVY_TEST_CONFIG_PATH`,
+  - wired release CTest wrappers to consume `DEVY_TEST_CONFIG_PATH`:
+    - `tests/scripts/assert-alpha-acceptance-pack.sh`,
+    - `tests/scripts/assert-install-package-smoke.sh`,
+    - `tests/scripts/assert-protocol-compat.sh`,
+    - `tests/scripts/assert-rollback-rehearsal.sh`,
+  - extended package-based release scripts with optional config injection:
+    - `scripts/install-package-smoke.sh [preset] [out-dir] [smoke-seconds] [clients] [load-seconds] [config-source-path]`,
+    - `scripts/rollback-rehearsal.sh [preset] [out-dir] [clients] [phase-seconds] [config-source-path]`,
+  - hardened `scripts/alpha-acceptance-pack.sh` to normalize config path to absolute form before exporting it to CTest.
+- Revalidated blocked TODO path while 8-hour endurance remains active:
+  - isolated-port regression lane now passes under contention:
+    - `DEVY_TEST_CONFIG_PATH=.../artifacts/tmp/server_test_port18777.json ctest --preset debug-vcpkg -R '^(shared\.unit|client\.unit|server\.unit|server\.(smoke|config\.invalid_tick_rate|config\.invalid_loot_drop|config\.invalid_json|telemetry\.alert_dry_run|release\.install_smoke|release\.protocol_upgrade_downgrade|release\.rollback_rehearsal))$' --output-on-failure` (`11/11`),
+  - full acceptance+regression now passes on isolated-port config:
+    - `DEVY_SKIP_BUILD=1 scripts/alpha-acceptance-pack.sh artifacts/tmp/server_test_port18777.json artifacts/releases/alpha-acceptance/todo-followup-port18777-regression debug-vcpkg 8 4 1`,
+    - summary: `artifacts/releases/alpha-acceptance/todo-followup-port18777-regression/summary.txt` (`status=pass`),
+  - alpha gate rerun passes with endurance step intentionally skipped (still covered by in-flight long run):
+    - `DEVY_SKIP_BUILD=1 scripts/alpha-release-gate.sh v0.2.0-alpha-todo-followup artifacts/tmp/server_test_port18777.json debug-vcpkg 8 4 480 artifacts/releases/alpha-gate/todo-followup-port18777 0 234e984`,
+    - gate summary: `artifacts/releases/alpha-gate/todo-followup-port18777/summary.txt` (`status=pass`),
+    - release notes candidate: `docs/releases/v0.2.0-alpha-todo-followup-notes.md`.
+- Latest endurance monitor snapshot:
+  - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+  - state: `process_state=running`,
+  - progress counters: `chaos_cycles_completed=49`, `restart_runs_completed=8`.
 
 ## Blockers / Bugs
 - No active build/test blockers in this environment for debug-vcpkg flow.
@@ -299,12 +324,14 @@
 - Full 8-hour endurance evidence run for alpha gate is in progress:
   - running artifacts: `artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
   - latest completed evidence remains intentionally short (`1` minute) and validates only full-path gate wiring.
-- While the endurance run holds port `17777`, full regression invocations that assume `config/server_test.json` (`port=17777`) are expected to fail with `Failed to create ENet server`; run those checks after endurance completion (or via isolated-port fixture wiring).
+- While the endurance run holds port `17777`, default-config regression invocations that bind `config/server_test.json` can still fail with `Failed to create ENet server`; use isolated-port fixtures with `DEVY_TEST_CONFIG_PATH` for concurrent validation, then rerun default-config evidence after endurance completion.
 
 ## Next Immediate Starting Point
 - Finish alpha candidate sign-off once the in-progress endurance run completes:
   - monitor run progress and final status:
     - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+  - while endurance is active, keep concurrent regression/gate runs on isolated-port fixtures:
+    - `DEVY_TEST_CONFIG_PATH=.../artifacts/tmp/server_test_port18777.json ...`,
   - optionally tag the current baseline checkpoint (`234e984`) for cleaner release-note range anchors,
   - rerun full acceptance+regression on default config once port `17777` is free:
     - `scripts/alpha-acceptance-pack.sh config/server_test.json artifacts/releases/alpha-acceptance/post-endurance debug-vcpkg 8 4 1`,

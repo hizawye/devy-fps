@@ -17,6 +17,7 @@ if [[ ! -f "${config_path}" ]]; then
   echo "Config file not found: ${config_path}" >&2
   exit 1
 fi
+config_path="$(readlink -f "${config_path}")"
 
 for pair in \
   "clients:${clients}" \
@@ -47,7 +48,7 @@ if (( run_regression == 1 )); then
   fi
 
   set +e
-  ctest --preset "${preset}" \
+  DEVY_TEST_CONFIG_PATH="${config_path}" ctest --preset "${preset}" \
     -R '^(shared\.unit|client\.unit|server\.unit|server\.(smoke|config\.invalid_tick_rate|config\.invalid_loot_drop|config\.invalid_json|telemetry\.alert_dry_run|release\.install_smoke|release\.protocol_upgrade_downgrade|release\.rollback_rehearsal))$' \
     --output-on-failure >"${regression_log}" 2>&1
   regression_exit=$?

@@ -240,3 +240,18 @@
   long-running endurance evidence window.
 - Deferred full acceptance+regression rerun on default config until the endurance run releases
   `port=17777`, preserving comparable baseline behavior for final alpha sign-off evidence.
+- Hardened alpha regression/test portability for concurrent endurance execution by introducing
+  config override plumbing:
+  - `DEVY_TEST_CONFIG_PATH` now drives `server.smoke` and release CTest wrappers,
+  - `scripts/install-package-smoke.sh` and `scripts/rollback-rehearsal.sh` accept an optional
+    config-source argument and inject it into extracted package configs before server launch.
+- Switched `server.smoke` CTest to wrapper-based invocation (`tests/scripts/assert-server-smoke.sh`)
+  so runtime config overrides are possible without regenerating tests or mutating baseline fixtures.
+- Normalized `scripts/alpha-acceptance-pack.sh` config input to absolute paths before exporting to
+  CTest environment, preventing relative-path failures when CTest executes from preset build dirs.
+- Verified the hardened flow under active 8-hour endurance load:
+  - isolated-port regression lane passed (`11/11`) with
+    `DEVY_TEST_CONFIG_PATH=.../artifacts/tmp/server_test_port18777.json`,
+  - full `scripts/alpha-acceptance-pack.sh ... run_regression=1` passed on isolated port,
+  - `scripts/alpha-release-gate.sh v0.2.0-alpha-todo-followup ... run_endurance=0 234e984`
+    passed and generated `docs/releases/v0.2.0-alpha-todo-followup-notes.md`.

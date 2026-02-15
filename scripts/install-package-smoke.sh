@@ -8,6 +8,15 @@ out_dir="${2:-${repo_root}/artifacts/releases/install-smoke/$(date +%Y%m%d-%H%M%
 smoke_seconds="${3:-4}"
 clients="${4:-3}"
 load_seconds="${5:-3}"
+config_source_path="${6:-}"
+
+if [[ -n "${config_source_path}" ]] && [[ ! -f "${config_source_path}" && -f "${repo_root}/${config_source_path}" ]]; then
+  config_source_path="${repo_root}/${config_source_path}"
+fi
+if [[ -n "${config_source_path}" ]] && [[ ! -f "${config_source_path}" ]]; then
+  echo "Config source file not found: ${config_source_path}" >&2
+  exit 1
+fi
 
 package_dir="${out_dir}/package"
 extract_dir="${out_dir}/extract"
@@ -46,6 +55,10 @@ for required in "${server_bin}" "${load_client_bin}" "${config_path}"; do
     exit 1
   fi
 done
+
+if [[ -n "${config_source_path}" ]]; then
+  cp "${config_source_path}" "${config_path}"
+fi
 
 port="$(grep -E '"port"\s*:\s*[0-9]+' "${config_path}" | head -n1 | sed -E 's/[^0-9]*([0-9]+).*/\1/')"
 if [[ -z "${port}" ]]; then
@@ -99,6 +112,7 @@ fi
   echo "smoke_seconds=${smoke_seconds}"
   echo "clients=${clients}"
   echo "load_seconds=${load_seconds}"
+  echo "config_source_path=${config_source_path:-package_default}"
   echo "server_status=${server_status}"
   echo "load_status=${load_status}"
   echo "joined_total=${joined_total}"
