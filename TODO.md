@@ -4,20 +4,7 @@ This file now contains only work that is still open.
 
 ## 1) Remaining Implementations (AI Expert)
 
-- [ ] A1. Replace preview-only client world with authoritative replicated world consumption.
-  - Scope: consume server `state_snapshot.payload.chunk_sync` deltas in interactive client and remove `map.preview_chunks` fallback generation.
-  - Targets: `client/src/main.cpp` and client runtime chunk/mesh update path.
-  - Done when: no preview fallback warning; cold-join + chunk delta application validated with test/doc note.
-
-- [ ] A2. Promote client gameplay networking from scaffold to authoritative integration.
-  - Scope: full join/heartbeat/input/fire/pickup intent flow + consume authoritative outputs (`damage_event`, `death_event`, `inventory_update`, `match_state`, ack/state fields).
-  - Targets: `client/src/main.cpp`, client runtime protocol handling, `tests/client/*` (+ shared/server integration tests as needed).
-  - Done when: interactive client session gameplay works against server without local-only fallback logic.
-
-- [ ] A3. Close Phase 4.3 diagnostics deliverable with operator-facing health surface.
-  - Scope: stable health interface (endpoint and/or machine-readable summary command) mapped to runtime telemetry/alerts.
-  - Targets: server diagnostics surface + docs + automated validation.
-  - Done when: operators can query health via stable interface and CI validates it.
+- None.
 
 ## 2) Remaining Release Ops Before `main`
 
@@ -28,6 +15,23 @@ This file now contains only work that is still open.
 - [ ] D4. Push branch and verify required checks are green.
 
 ## 3) Already Completed (Evidence)
+
+- A1 complete: interactive client now consumes authoritative `chunk_sync` and no longer uses preview fallback world generation.
+  - `client/src/main.cpp`
+  - `client/include/client/ChunkSyncApplier.h`
+  - `client/src/ChunkSyncApplier.cpp`
+  - `tests/client/ChunkSyncApplierTests.cpp`
+
+- A2 complete: interactive client now sends authoritative join/heartbeat/input/fire/pickup intents and consumes authoritative gameplay outputs (`state_snapshot`, `damage_event`, `inventory_update`, `match_state`).
+  - `client/src/main.cpp`
+
+- A3 complete: server now supports stable operator-facing health snapshot output via `--health-file`, with CI-validated dry-run test.
+  - `server/src/main.cpp`
+  - `scripts/health-file-dry-run.sh`
+  - `tests/scripts/assert-health-file-dry-run.sh`
+  - `tests/CMakeLists.txt`
+  - `.github/workflows/ci.yml`
+  - `.github/workflows/reliability.yml`
 
 - Fast gate pass (`status=pass`, `endurance_status=skipped`):
   - `artifacts/releases/alpha-gate/fast-mainline/summary.txt`

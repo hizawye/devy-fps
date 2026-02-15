@@ -676,3 +676,6 @@
 - 2026-02-15: Hardened `tests/scripts/assert-alpha-endurance-short.sh` to honor `DEVY_TEST_CONFIG_PATH` and execute from repo root for stable CTest behavior.
 - 2026-02-15: Hardened `tests/scripts/assert-release-notes.sh` to validate commit counts against the generated release-note range instead of assuming `HEAD` full-history count.
 - 2026-02-15: Added `builtin-baseline` to `vcpkg.json` to satisfy GitHub Actions `lukka/run-vcpkg@v11` baseline requirement and unblock CI/reliability workflows.
+- 2026-02-15: Committed to authoritative interactive-client operation (no preview-world fallback) and centralized chunk replication apply logic via `client::ChunkSyncApplier` for deterministic client world updates.
+- 2026-02-15: Added `--health-file` server output to publish telemetry windows as atomically written machine-readable diagnostics snapshots for operator tooling.
+- 2026-02-15: Added CI/reliability workflow apt bootstrap (`autoconf`, `autoconf-archive`, `automake`, `libtool`, `pkg-config`) before vcpkg invocation to remove host dependency drift in GitHub runners.

@@ -47,8 +47,11 @@ You can pass a config path to either executable:
   - `server.config.invalid_json`
 - Telemetry/alert dry-run test:
   - `server.telemetry.alert_dry_run`
+- Health-file diagnostics dry-run test:
+  - `server.telemetry.health_file_dry_run`
 - Active-session load profile + telemetry artifact capture: `scripts/profile-load.sh [config-path] [clients] [seconds] [out-dir]`
 - Telemetry diagnostics dry run: `scripts/diagnostics-dry-run.sh [config-path] [seconds] [out-dir] [expected-alert]`
+- Health-file diagnostics dry run: `scripts/health-file-dry-run.sh [config-path] [seconds] [out-dir] [health-file]`
 - CI validation helpers:
   - cache correctness: `scripts/ci-cache-check.sh [preset]`
   - pipeline failure injection: `scripts/ci-failure-injection.sh [server-binary] [invalid-config] [expected-message]`
@@ -117,6 +120,8 @@ You can pass a config path to either executable:
   - inbound packet drop and parse-error rates,
   - command rejection counts and active-player averages,
   - machine-parseable `Runtime diagnostics json=...` log lines with optional alert thresholds (`runtime.profiling.alerts.*`).
+- Server can publish the latest diagnostics snapshot as a stable machine-readable file via
+  `--health-file <path>`.
 - Server sends reliable `match_state` packets on state transitions by default to trim per-snapshot
   network overhead; set `runtime.match_state_broadcast_on_snapshot=true` to restore legacy
   every-snapshot reliable `match_state` broadcasts.
@@ -138,11 +143,15 @@ You can pass a config path to either executable:
 - Server now processes authoritative `block_update` requests (break/place), validates conflicts/ranges, and marks chunk revisions for replication deltas.
 - Client-side prediction/reconciliation scaffolding is implemented in `client_runtime` (`PredictionReconciler`) for replaying unacknowledged local inputs from authoritative ack snapshots.
 - Client-side `weapon_fire` packet emission scaffolding is implemented in `client_runtime` (`WeaponFireEmitter`) with monotonic shot sequencing and normalized aim vectors.
+- Interactive client now uses authoritative networking for join/heartbeat/input/fire/pickup intent
+  flow, consumes authoritative gameplay outputs (`damage_event`, `death_event`, `inventory_update`,
+  `match_state`), and applies replicated `chunk_sync` world updates.
 
 ## Controls (Current)
 - WASD: move
 - Mouse: look
-- Left click: emit local `weapon_fire` request scaffold (logged)
+- Left click: send authoritative `weapon_fire` intent
+- E: send `treasure_pickup` intent for nearest replicated spawn in range
 - Shift: sprint
 - C: crouch
 - Space: jump
@@ -167,5 +176,4 @@ You can pass a config path to either executable:
 - Loot drops on death
 
 ## Notes
-- Server-side world replication scaffolding is implemented, but the interactive client still renders a local preview region via `map.preview_chunks`.
 - Terrain collision is heightmap-based (no caves yet).

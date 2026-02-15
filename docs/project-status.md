@@ -990,3 +990,18 @@
 - Next immediate starting point:
   - Implement A1 authoritative chunk-sync consumption in interactive client.
 - CI follow-up: added `builtin-baseline` to `vcpkg.json` after push-time workflow failure (`run-vcpkg` baseline missing); local configure remains green.
+
+## Fast TODO Closeout Update (2026-02-15)
+- Current progress:
+  - Implemented authoritative interactive client flow for join/heartbeat/input/fire/pickup and authoritative `state_snapshot`/`chunk_sync`/combat/inventory/match-state consumption in `client/src/main.cpp`.
+  - Added reusable `ChunkSyncApplier` + unit coverage (`tests/client/ChunkSyncApplierTests.cpp`) and linked ENet in `client/CMakeLists.txt`.
+  - Added server operator health snapshot output (`--health-file`) with dry-run integration coverage (`server.telemetry.health_file_dry_run`).
+  - Updated CI/reliability workflows to install missing build dependencies before vcpkg steps.
+  - Fast validation passed on this workspace:
+    - `scripts/configure.sh debug-vcpkg`
+    - `scripts/build.sh debug-vcpkg`
+    - `DEVY_TEST_CONFIG_PATH=$(pwd)/artifacts/tmp/server_test_port18777.json ctest --preset debug-vcpkg -R '^(client\.unit|server\.telemetry\.alert_dry_run|server\.telemetry\.health_file_dry_run)$' --output-on-failure`
+- Blockers/Bugs:
+  - None known locally.
+- Next immediate starting point:
+  - Complete D3/D4: finalize split commits, push `main`, and verify required GitHub checks.
