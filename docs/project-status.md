@@ -443,6 +443,16 @@
     - endurance worker `3365108` active (`etime=01:08:56`),
     - follow-up worker `3419283` active (`etime=20:17`),
     - finalizer worker `3496294` active (`etime=03:28`).
+- Refreshed TODO monitor checkpoint with live worker liveness:
+  - monitor snapshot (`2026-02-15T19:00:07Z`):
+    - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+    - endurance state: `process_state=running`, `chaos_cycles_completed=159`, `restart_runs_completed=26`,
+    - follow-up worker remains active and waiting (`pid=3419283`, summary still missing by design),
+    - finalizer worker remains active and waiting (`pid=3496294`, summary still missing by design).
+  - direct process liveness checks:
+    - endurance worker `3365108` active (`etime=01:10:08`),
+    - follow-up worker `3419283` active (`etime=21:29`),
+    - finalizer worker `3496294` active (`etime=04:40`).
 
 ## Blockers / Bugs
 - No active build/test blockers in this environment for debug-vcpkg flow.
