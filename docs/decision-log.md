@@ -310,3 +310,15 @@
     `restart_runs_completed=23`,
   - queued follow-up summary file remains intentionally absent while waiting for endurance pass,
   - both detached workers (`3365108`, `3419283`) remain alive.
+- Chosen to automate the final remaining TODO release-cut step so completion no longer requires
+  manual intervention after endurance/follow-up pass:
+  - added `scripts/alpha-finalize-release.sh` to wait for post-endurance follow-up pass, verify
+    acceptance/gate summaries, regenerate final release notes, and create final release commit/tag.
+- Selected final release target `v0.2.0-alpha` with notes generated from
+  `v0.2.0-alpha-baseline..HEAD` to produce a clean alpha tag independent of temporary
+  `*-post-endurance` gate note filenames.
+- Launched detached finalizer worker:
+  - output root: `artifacts/releases/post-endurance/finalize-20260215-195526`,
+  - launcher pid: `3496294`,
+  - first status snapshot (`2026-02-15T18:55:27Z`) shows expected waiting state until follow-up
+    summary file is written.

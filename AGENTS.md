@@ -30,3 +30,4 @@
 - `scripts/alpha-endurance-status.sh [out-dir]`
 - `scripts/alpha-release-gate.sh [version-tag] [config-path] [preset] [clients] [scenario-seconds] [endurance-minutes] [out-dir] [run-endurance(0|1)] [from-ref]`
 - `scripts/alpha-post-endurance-followup.sh [endurance-out-dir] [version-tag] [config-path] [preset] [clients] [scenario-seconds] [endurance-minutes] [from-ref] [poll-seconds] [out-dir] [run-gate-endurance(0|1)]`
+- `scripts/alpha-finalize-release.sh [followup-out-dir] [version-tag] [from-ref] [poll-seconds] [out-dir] [create-tag(0|1)]`

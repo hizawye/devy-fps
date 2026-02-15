@@ -409,6 +409,20 @@
   - process liveness check:
     - endurance pid `3365108` active (`etime=01:02:27`),
     - follow-up pid `3419283` active (`etime=13:48`).
+- Added automated release-finalization TODO executor:
+  - new helper script: `scripts/alpha-finalize-release.sh`,
+  - behavior: wait for post-endurance follow-up summary `status=pass`, verify acceptance/gate summaries, generate final release notes from `v0.2.0-alpha-baseline`, then create `chore(release): v0.2.0-alpha` commit + annotated tag.
+- Launched detached release-finalization worker:
+  - out dir: `artifacts/releases/post-endurance/finalize-20260215-195526`,
+  - launcher pid: `3496294` (tracked in `pid.txt`),
+  - live logs: `run.log` and `status.log`,
+  - first poll snapshot (`2026-02-15T18:55:27Z`): `waiting: summary not found` (expected until `artifacts/releases/post-endurance/followup-20260215-193837/summary.txt` exists).
+- Refreshed live blocker snapshot after queuing finalizer:
+  - monitor snapshot (`2026-02-15T18:53:47Z`):
+    - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+    - endurance state: `process_state=running`, `chaos_cycles_completed=145`, `restart_runs_completed=24`,
+    - follow-up summary remains pending (`artifacts/releases/post-endurance/followup-20260215-193837/summary.txt` missing),
+    - finalizer worker remains active and waiting (`pid=3496294`).
 
 ## Blockers / Bugs
 - No active build/test blockers in this environment for debug-vcpkg flow.
@@ -421,7 +435,7 @@
 - Full 8-hour endurance evidence run for alpha gate is in progress:
   - running artifacts: `artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
   - latest completed evidence remains intentionally short (`1` minute) and validates only full-path gate wiring.
-- While the endurance run holds port `17777`, manual default-config regression invocations that bind `config/server_test.json` can fail with `Failed to create ENet server`; post-endurance reruns are now queued via `scripts/alpha-post-endurance-followup.sh`.
+- While the endurance run holds port `17777`, manual default-config regression invocations that bind `config/server_test.json` can fail with `Failed to create ENet server`; post-endurance reruns and final release cut are now queued via `scripts/alpha-post-endurance-followup.sh` and `scripts/alpha-finalize-release.sh`.
 
 ## Next Immediate Starting Point
 - Monitor queued follow-up completion and perform final release commit/tag:
@@ -431,4 +445,8 @@
     - `cat artifacts/releases/post-endurance/followup-20260215-193837/pid.txt`,
     - `tail -n 40 artifacts/releases/post-endurance/followup-20260215-193837/status.log`,
     - `cat artifacts/releases/post-endurance/followup-20260215-193837/summary.txt`,
-  - once follow-up summary is `status=pass`, stage release docs and cut final `chore(release): v0.x.y-alpha` commit/tag.
+  - monitor queued finalizer worker:
+    - `cat artifacts/releases/post-endurance/finalize-20260215-195526/pid.txt`,
+    - `tail -n 40 artifacts/releases/post-endurance/finalize-20260215-195526/status.log`,
+    - `cat artifacts/releases/post-endurance/finalize-20260215-195526/summary.txt`,
+  - once finalizer summary is `status=pass`, release commit/tag is already applied (`chore(release): v0.2.0-alpha` + `v0.2.0-alpha`).

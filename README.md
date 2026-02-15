@@ -63,6 +63,7 @@ You can pass a config path to either executable:
   - alpha endurance status helper (live/summary view): `scripts/alpha-endurance-status.sh [out-dir]`
   - alpha release gate orchestrator: `scripts/alpha-release-gate.sh [version-tag] [config-path] [preset] [clients] [scenario-seconds] [endurance-minutes] [out-dir] [run-endurance(0|1)] [from-ref]`
   - post-endurance alpha follow-up orchestrator (wait + default-port acceptance + gate): `scripts/alpha-post-endurance-followup.sh [endurance-out-dir] [version-tag] [config-path] [preset] [clients] [scenario-seconds] [endurance-minutes] [from-ref] [poll-seconds] [out-dir] [run-gate-endurance(0|1)]`
+  - final release automation (wait follow-up + release notes + release commit/tag): `scripts/alpha-finalize-release.sh [followup-out-dir] [version-tag] [from-ref] [poll-seconds] [out-dir] [create-tag(0|1)]`
   - set `DEVY_SKIP_BUILD=1` to package from an already-built preset without rebuilding.
 - Reliability drills:
   - watchdog restart loop: `scripts/watchdog-server.sh [config-path] [run-seconds] [max-restarts] [backoff-seconds] [out-dir] [rotation-keep]`

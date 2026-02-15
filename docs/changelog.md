@@ -279,3 +279,8 @@
   validation evidence while final release tagging remains blocked on the in-flight 8-hour run.
 - Recorded another live TODO monitoring checkpoint (`2026-02-15T18:52:26Z`) confirming endurance and
   queued follow-up workers are still running and final alpha release commit/tag remains gated.
+- Added `scripts/alpha-finalize-release.sh` to automate the final release cut by waiting for
+  post-endurance follow-up pass, generating `v0.2.0-alpha` notes, and creating final
+  `chore(release)` commit/tag.
+- Updated `README.md`, `AGENTS.md`, `docs/decision-log.md`, and `docs/project-status.md` with
+  finalizer usage and detached worker monitoring paths.
