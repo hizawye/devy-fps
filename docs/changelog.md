@@ -180,6 +180,10 @@
   - `server.release.release_notes_generation`
 
 ### Changed
+- Updated release/docs state tracking:
+  - closed fast-path release-ops TODO items (`D3`, `D4`) with recorded CI/reliability evidence,
+  - documented transient CI vcpkg upstream `502` retry behavior,
+  - added Fedora local handoff verification note with full `debug-vcpkg` configure/build/test pass (`19/19`).
 - `.gitignore` now ignores `/artifacts/` so generated runtime/reliability evidence stays local and does not pollute source commits.
 - Top-level `CMakeLists.txt` now enables warning policy options, optional clang-tidy integration, and test subdirectory wiring.
 - `server/src/main.cpp` now supports `--smoke-seconds` for deterministic headless runtime checks.

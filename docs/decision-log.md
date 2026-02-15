@@ -679,3 +679,5 @@
 - 2026-02-15: Committed to authoritative interactive-client operation (no preview-world fallback) and centralized chunk replication apply logic via `client::ChunkSyncApplier` for deterministic client world updates.
 - 2026-02-15: Added `--health-file` server output to publish telemetry windows as atomically written machine-readable diagnostics snapshots for operator tooling.
 - 2026-02-15: Added CI/reliability workflow apt bootstrap (`autoconf`, `autoconf-archive`, `automake`, `libtool`, `pkg-config`) before vcpkg invocation to remove host dependency drift in GitHub runners.
+- 2026-02-15: For merge-gate verification, treat isolated upstream vcpkg download `502` failures as transient CI infra flake; rerun failed jobs and require green rerun results before closing release-op TODO items.
+- 2026-02-15: For local Fedora handoff, rely on script auto-detection of `../vcpkg` and treat a full `scripts/configure.sh debug` + `scripts/build.sh debug` + `scripts/test.sh debug` pass (`19/19`) as sufficient readiness before asking the operator to run client/server terminals.

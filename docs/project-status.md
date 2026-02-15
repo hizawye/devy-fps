@@ -1005,3 +1005,34 @@
   - None known locally.
 - Next immediate starting point:
   - Complete D3/D4: finalize split commits, push `main`, and verify required GitHub checks.
+
+## Fast TODO Merge Ops Update (2026-02-15)
+- Current progress:
+  - Completed D3: commit set is prepared, branch is clean, and `main` is synchronized with `origin/main` at `8c5bd01ef6c17d0edd91c31c2d975836a89f4326`.
+  - Completed D4: latest pushed `main` commit has green workflow state:
+    - Reliability run `22043799088` concluded `success`.
+    - CI run `22043799097` concluded `success` on attempt 2.
+  - Captured CI anomaly details from attempt 1:
+    - single server-unit shard failed during vcpkg dependency download (`opengl-registry`) with upstream HTTP `502`,
+    - rerunning failed jobs cleared the issue with no repository changes required.
+- Blockers/Bugs:
+  - None currently; TODO release-ops gate is closed.
+- Next immediate starting point:
+  - Prepare next scope beyond the fast-path TODO list (or cut/tag the intended release milestone if desired).
+
+## Fedora Local Handoff Update (2026-02-15)
+- Current progress:
+  - Confirmed Fedora workstation prerequisites are installed for local development (`cmake`, `ninja-build`, `pkgconf-pkg-config`, autotools toolchain, OpenGL/X11 dev headers).
+  - Reused existing local vcpkg checkout at `../vcpkg` through script auto-detection.
+  - Executed full local validation on `debug-vcpkg`:
+    - `scripts/configure.sh debug`
+    - `scripts/build.sh debug`
+    - `scripts/test.sh debug`
+  - Result: full CTest pass (`19/19`) including reliability and release-operation lanes.
+  - Runtime handoff state is ready with binaries:
+    - `build/presets/debug-vcpkg/server/devy_server`
+    - `build/presets/debug-vcpkg/client/devy_client`
+- Blockers/Bugs:
+  - None.
+- Next immediate starting point:
+  - Run server/client in separate terminals with `config/server_test.json`.

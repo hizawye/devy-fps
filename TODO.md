@@ -1,6 +1,6 @@
 # Devy FPS Remaining TODO (Fast Path)
 
-This file now contains only work that is still open.
+This file tracks fast-path closeout status.
 
 ## 1) Remaining Implementations (AI Expert)
 
@@ -8,11 +8,15 @@ This file now contains only work that is still open.
 
 ## 2) Remaining Release Ops Before `main`
 
-- [ ] D3. Prepare commit set for merge.
+- [x] D3. Prepare commit set for merge.
   - Use Conventional Commits.
   - Keep docs/evidence sync commit separate from code changes when practical.
+  - Completed: `main` is clean and synchronized with `origin/main` at `8c5bd01` with split Conventional Commit history in place.
 
-- [ ] D4. Push branch and verify required checks are green.
+- [x] D4. Push branch and verify required checks are green.
+  - Completed: latest `main` push verified on GitHub Actions:
+    - Reliability run `22043799088`: `success`.
+    - CI run `22043799097`: `success` on rerun attempt 2 after an attempt-1 transient upstream `502` while downloading `opengl-registry` via vcpkg.
 
 ## 3) Already Completed (Evidence)
 
