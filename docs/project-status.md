@@ -273,6 +273,20 @@
   - state: `process_state=running`,
   - progress counters: `chaos_cycles_completed=16`, `restart_runs_completed=2`,
   - summaries still pending while run is active (`run_summary=missing`, `soak_summary=missing`).
+- Executed TODO-follow acceptance gate attempts while endurance was running:
+  - attempted full acceptance + regression:
+    - `scripts/alpha-acceptance-pack.sh config/server_test.json artifacts/releases/alpha-acceptance/todo-followup debug-vcpkg 8 4 1`,
+    - failed due ENet bind contention on port `17777` (active 8-hour endurance server already bound),
+    - failure surfaced in `server.smoke` and release integration checks invoked by regression mode.
+  - executed isolated-port acceptance scenario pack:
+    - generated temporary config `artifacts/tmp/server_test_port18777.json` (port `18777`),
+    - `scripts/alpha-acceptance-pack.sh artifacts/tmp/server_test_port18777.json artifacts/releases/alpha-acceptance/todo-followup-port18777 debug-vcpkg 8 4 0`,
+    - passed (`status=pass`) at `artifacts/releases/alpha-acceptance/todo-followup-port18777/summary.txt`.
+- Rechecked in-progress 8-hour endurance run health:
+  - command: `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+  - state: `process_state=running`,
+  - progress counters: `chaos_cycles_completed=26`, `restart_runs_completed=4`,
+  - summaries still pending while run is active (`run_summary=missing`, `soak_summary=missing`).
 - Added `/artifacts/` to `.gitignore` so local endurance/release evidence output does not pollute baseline release-prep commits.
 
 ## Blockers / Bugs
@@ -285,11 +299,14 @@
 - Full 8-hour endurance evidence run for alpha gate is in progress:
   - running artifacts: `artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
   - latest completed evidence remains intentionally short (`1` minute) and validates only full-path gate wiring.
+- While the endurance run holds port `17777`, full regression invocations that assume `config/server_test.json` (`port=17777`) are expected to fail with `Failed to create ENet server`; run those checks after endurance completion (or via isolated-port fixture wiring).
 
 ## Next Immediate Starting Point
 - Finish alpha candidate sign-off once the in-progress endurance run completes:
   - monitor run progress and final status:
     - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
   - optionally tag the current baseline checkpoint (`234e984`) for cleaner release-note range anchors,
+  - rerun full acceptance+regression on default config once port `17777` is free:
+    - `scripts/alpha-acceptance-pack.sh config/server_test.json artifacts/releases/alpha-acceptance/post-endurance debug-vcpkg 8 4 1`,
   - run `scripts/alpha-release-gate.sh v0.x.y-alpha config/server_test.json debug-vcpkg 8 8 480 artifacts/releases/alpha-gate/candidate 1 234e984`,
   - commit release notes/docs and create `chore(release): v0.x.y-alpha` tag.

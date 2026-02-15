@@ -232,3 +232,11 @@
 - Committed the full roadmap implementation baseline as
   `234e984` (`feat(alpha): baseline roadmap implementation for release prep`) so final alpha gate
   tooling can use an explicit from-ref even without a prior release tag.
+- Chosen to keep the in-flight 8-hour endurance evidence run uninterrupted and treat concurrent
+  acceptance-pack regression failures on `port=17777` as expected resource contention, not product
+  regressions.
+- Chosen temporary isolated-port execution (`artifacts/tmp/server_test_port18777.json`) for
+  acceptance scenarios while endurance is active, allowing TODO progress without invalidating the
+  long-running endurance evidence window.
+- Deferred full acceptance+regression rerun on default config until the endurance run releases
+  `port=17777`, preserving comparable baseline behavior for final alpha sign-off evidence.
