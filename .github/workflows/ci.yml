@@ -28,7 +28,7 @@ jobs:
       - name: Install vcpkg system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y autoconf autoconf-archive automake libtool libltdl-dev libgl1-mesa-dev pkg-config
+          sudo apt-get install -y autoconf autoconf-archive automake libtool libltdl-dev libgl1-mesa-dev libxext-dev pkg-config
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
@@ -63,7 +63,7 @@ jobs:
       - name: Install vcpkg system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y autoconf autoconf-archive automake libtool libltdl-dev libgl1-mesa-dev pkg-config
+          sudo apt-get install -y autoconf autoconf-archive automake libtool libltdl-dev libgl1-mesa-dev libxext-dev pkg-config
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
@@ -101,7 +101,7 @@ jobs:
       - name: Install vcpkg system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y autoconf autoconf-archive automake libtool libltdl-dev libgl1-mesa-dev pkg-config
+          sudo apt-get install -y autoconf autoconf-archive automake libtool libltdl-dev libgl1-mesa-dev libxext-dev pkg-config
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
@@ -134,7 +134,7 @@ jobs:
       - name: Install vcpkg system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y autoconf autoconf-archive automake libtool libltdl-dev libgl1-mesa-dev pkg-config
+          sudo apt-get install -y autoconf autoconf-archive automake libtool libltdl-dev libgl1-mesa-dev libxext-dev pkg-config
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
