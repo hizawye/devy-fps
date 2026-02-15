@@ -277,3 +277,5 @@
   queued post-endurance follow-up workflow and active worker evidence paths.
 - Refreshed release-monitoring docs with a new endurance/follow-up status snapshot and helper-script
   validation evidence while final release tagging remains blocked on the in-flight 8-hour run.
+- Recorded another live TODO monitoring checkpoint (`2026-02-15T18:52:26Z`) confirming endurance and
+  queued follow-up workers are still running and final alpha release commit/tag remains gated.

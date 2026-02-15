@@ -304,3 +304,9 @@
   - syntax check: `bash -n` passed,
   - missing-endurance-path invocation fails fast with explicit error,
   - invalid numeric argument invocation fails fast with explicit error.
+- Re-polled TODO blocker state (`2026-02-15T18:52:26Z`) and kept release finalization blocked on
+  endurance completion:
+  - endurance monitor remains `status=running` with `chaos_cycles_completed=142`,
+    `restart_runs_completed=23`,
+  - queued follow-up summary file remains intentionally absent while waiting for endurance pass,
+  - both detached workers (`3365108`, `3419283`) remain alive.

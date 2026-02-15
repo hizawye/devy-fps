@@ -401,6 +401,14 @@
     - `bash -n scripts/alpha-post-endurance-followup.sh` (`ok`),
     - invalid-path guard returns `Endurance output directory not found`,
     - invalid numeric guard returns `Invalid numeric arguments`.
+- Refreshed run-monitor evidence while following TODO:
+  - monitor snapshot (`2026-02-15T18:52:26Z`):
+    - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+    - endurance state: `process_state=running`, `chaos_cycles_completed=142`, `restart_runs_completed=23`,
+    - follow-up worker still waiting with no final summary yet: `artifacts/releases/post-endurance/followup-20260215-193837/summary.txt` (`missing` until endurance `status=pass`),
+  - process liveness check:
+    - endurance pid `3365108` active (`etime=01:02:27`),
+    - follow-up pid `3419283` active (`etime=13:48`).
 
 ## Blockers / Bugs
 - No active build/test blockers in this environment for debug-vcpkg flow.
