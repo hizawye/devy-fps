@@ -268,3 +268,7 @@
     - `DEVY_SKIP_BUILD=1 scripts/alpha-release-gate.sh v0.2.0-alpha-todo-followup-rerun2 artifacts/tmp/server_test_port18777.json debug-vcpkg 8 4 480 artifacts/releases/alpha-gate/todo-followup-port18777-rerun2 0 v0.2.0-alpha-baseline`,
     - gate/acceptance summaries passed and generated `docs/releases/v0.2.0-alpha-todo-followup-rerun2-notes.md`.
 - Chosen to keep producing fresh isolated-port acceptance/gate evidence while the 8-hour default-port endurance run is in flight so release-readiness regressions are still detected without interrupting endurance evidence capture.
+- Continued TODO-follow cadence with another isolated-port evidence refresh while endurance remains active:
+  - `DEVY_SKIP_BUILD=1 scripts/alpha-acceptance-pack.sh artifacts/tmp/server_test_port18777.json artifacts/releases/alpha-acceptance/todo-followup-port18777-regression-rerun3 debug-vcpkg 8 4 1` passed,
+  - `DEVY_SKIP_BUILD=1 scripts/alpha-release-gate.sh v0.2.0-alpha-todo-followup-rerun3 artifacts/tmp/server_test_port18777.json debug-vcpkg 8 4 480 artifacts/releases/alpha-gate/todo-followup-port18777-rerun3 0 v0.2.0-alpha-baseline` passed and generated `docs/releases/v0.2.0-alpha-todo-followup-rerun3-notes.md`.
+- Reconfirmed long-run health after rerun3 evidence (`2026-02-15T18:27:57Z`): `process_state=running`, `chaos_cycles_completed=86`, `restart_runs_completed=14`; kept default-port post-endurance reruns deferred until port `17777` is free.
