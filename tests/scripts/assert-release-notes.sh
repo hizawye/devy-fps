@@ -21,11 +21,24 @@ fi
 
 expected_commits="$(git -C "${repo_root}" rev-list --count HEAD)"
 actual_commits="$(awk -F': ' '/^Total commits: / { print $2 }' "${notes_file}")"
+range_desc="$(awk -F': ' '/^Range: / { print $2 }' "${notes_file}")"
 
 if [[ -z "${actual_commits}" ]]; then
   echo "Release notes missing commit count line" >&2
   cat "${notes_file}"
   exit 1
+fi
+
+if [[ -z "${range_desc}" ]]; then
+  echo "Release notes missing range line" >&2
+  cat "${notes_file}"
+  exit 1
+fi
+
+if [[ "${range_desc}" =~ ^\(all\ commits\ up\ to\ (.+)\)$ ]]; then
+  expected_commits="$(git -C "${repo_root}" rev-list --count "${BASH_REMATCH[1]}")"
+else
+  expected_commits="$(git -C "${repo_root}" rev-list --count "${range_desc}")"
 fi
 
 if [[ "${actual_commits}" != "${expected_commits}" ]]; then

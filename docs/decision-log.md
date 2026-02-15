@@ -671,3 +671,7 @@
   - both queued workers (`3419283`, `3496294`) remain healthy and waiting for expected
     upstream summaries,
   - no new code-path changes required before endurance completion.
+
+- 2026-02-15: Fast-path validation strategy switched to port-safe config (`artifacts/tmp/server_test_port18777.json`) to avoid contention from legacy long-running endurance jobs on `17777`.
+- 2026-02-15: Hardened `tests/scripts/assert-alpha-endurance-short.sh` to honor `DEVY_TEST_CONFIG_PATH` and execute from repo root for stable CTest behavior.
+- 2026-02-15: Hardened `tests/scripts/assert-release-notes.sh` to validate commit counts against the generated release-note range instead of assuming `HEAD` full-history count.

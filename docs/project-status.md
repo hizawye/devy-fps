@@ -976,3 +976,16 @@
     - finalizer worker `3496294` active (`etime=56:14`).
   - blocker state: follow-up/finalizer `summary.txt` outputs are both still missing as expected until endurance completes.
   - next immediate starting point: rerun this TODO monitor checkpoint cycle and commit docs as soon as a new status interval is available.
+
+## Fast-Path TODO Execution Update (2026-02-15)
+- Completed fast-path release/test gates with port-safe config `artifacts/tmp/server_test_port18777.json`:
+  - `scripts/alpha-release-gate.sh ...` -> `artifacts/releases/alpha-gate/fast-mainline/summary.txt` (`status=pass`, `endurance_status=skipped`),
+  - `scripts/alpha-acceptance-pack.sh ...` -> `artifacts/releases/alpha-acceptance/fast-mainline/summary.txt` (`status=pass`),
+  - `ctest -R '^server.release.alpha_endurance_short$'` with `DEVY_TEST_CONFIG_PATH` -> `artifacts/releases/ctest-alpha-endurance-short/summary.txt` (`status=pass`),
+  - `scripts/test.sh debug-vcpkg` -> full pass (`18/18`).
+- Stopped stale 8-hour endurance/follow-up loops that were interfering with fast-path validation.
+- Updated `TODO.md` to list only remaining open implementation work (A1/A2/A3) and merge ops (D3/D4).
+- Blockers/Bugs:
+  - No active test blocker after harness fixes below.
+- Next immediate starting point:
+  - Implement A1 authoritative chunk-sync consumption in interactive client.
