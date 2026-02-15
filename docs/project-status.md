@@ -384,6 +384,23 @@
   - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
   - state: `process_state=running`,
   - progress counters: `chaos_cycles_completed=102`, `restart_runs_completed=16`.
+- Added automated post-endurance TODO executor:
+  - new helper script: `scripts/alpha-post-endurance-followup.sh`,
+  - behavior: wait for active endurance candidate status `pass`, then run default-port acceptance+regression and alpha release gate with release-notes generation from `v0.2.0-alpha-baseline`.
+- Launched detached post-endurance follow-up worker:
+  - out dir: `artifacts/releases/post-endurance/followup-20260215-193837`,
+  - launcher pid: `3419283` (tracked in `pid.txt`),
+  - live logs: `run.log` and `status.log`,
+  - first poll snapshot (`2026-02-15T18:38:38Z`): endurance `process_state=running`, `chaos_cycles_completed=110`, `restart_runs_completed=18`.
+- Revalidated queued follow-up health and helper script argument guards:
+  - monitor snapshot (`2026-02-15T18:50:44Z`):
+    - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+    - endurance state: `process_state=running`, `chaos_cycles_completed=135`, `restart_runs_completed=22`,
+    - follow-up queue state: `artifacts/releases/post-endurance/followup-20260215-193837/summary.txt` is not yet present (`waiting` by design until endurance `status=pass`).
+  - helper validation:
+    - `bash -n scripts/alpha-post-endurance-followup.sh` (`ok`),
+    - invalid-path guard returns `Endurance output directory not found`,
+    - invalid numeric guard returns `Invalid numeric arguments`.
 
 ## Blockers / Bugs
 - No active build/test blockers in this environment for debug-vcpkg flow.
@@ -396,17 +413,14 @@
 - Full 8-hour endurance evidence run for alpha gate is in progress:
   - running artifacts: `artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
   - latest completed evidence remains intentionally short (`1` minute) and validates only full-path gate wiring.
-- While the endurance run holds port `17777`, default-config regression invocations that bind `config/server_test.json` can still fail with `Failed to create ENet server`; use isolated-port fixtures with `DEVY_TEST_CONFIG_PATH` for concurrent validation, then rerun default-config evidence after endurance completion.
+- While the endurance run holds port `17777`, manual default-config regression invocations that bind `config/server_test.json` can fail with `Failed to create ENet server`; post-endurance reruns are now queued via `scripts/alpha-post-endurance-followup.sh`.
 
 ## Next Immediate Starting Point
-- Finish alpha candidate sign-off once the in-progress endurance run completes:
-  - monitor run progress and final status:
+- Monitor queued follow-up completion and perform final release commit/tag:
+  - monitor active endurance run:
     - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
-  - while endurance is active, avoid additional duplicate reruns unless code/config changes; current isolated-port evidence baseline is:
-    - `artifacts/releases/alpha-acceptance/todo-followup-port18777-regression-rerun4/summary.txt`,
-    - `artifacts/releases/alpha-gate/todo-followup-port18777-rerun4/summary.txt`,
-  - use baseline tag `v0.2.0-alpha-baseline` as `from_ref` for release-note generation,
-  - rerun full acceptance+regression on default config once port `17777` is free:
-    - `scripts/alpha-acceptance-pack.sh config/server_test.json artifacts/releases/alpha-acceptance/post-endurance debug-vcpkg 8 4 1`,
-  - run `scripts/alpha-release-gate.sh v0.x.y-alpha config/server_test.json debug-vcpkg 8 8 480 artifacts/releases/alpha-gate/candidate 1 v0.2.0-alpha-baseline`,
-  - commit release notes/docs and create `chore(release): v0.x.y-alpha` tag.
+  - monitor queued follow-up worker:
+    - `cat artifacts/releases/post-endurance/followup-20260215-193837/pid.txt`,
+    - `tail -n 40 artifacts/releases/post-endurance/followup-20260215-193837/status.log`,
+    - `cat artifacts/releases/post-endurance/followup-20260215-193837/summary.txt`,
+  - once follow-up summary is `status=pass`, stage release docs and cut final `chore(release): v0.x.y-alpha` commit/tag.

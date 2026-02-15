@@ -283,3 +283,24 @@
   - release notes: `docs/releases/v0.2.0-alpha-todo-followup-rerun4-notes.md`,
   - known issues register: `docs/releases/alpha-known-issues.md` (`None` open issues).
 - Reconfirmed long-run health after checklist sync (`2026-02-15T18:34:40Z`): `process_state=running`, `chaos_cycles_completed=102`, `restart_runs_completed=16`; final default-port gate remains blocked only on endurance completion.
+- Chosen to automate the remaining TODO completion path (instead of manual monitoring + rerun
+  commands) by adding `scripts/alpha-post-endurance-followup.sh`, which:
+  - polls `scripts/alpha-endurance-status.sh` until the active endurance candidate is `pass`,
+  - then runs default-port `scripts/alpha-acceptance-pack.sh` with regression enabled,
+  - then runs `scripts/alpha-release-gate.sh` using `v0.2.0-alpha-baseline` as `from_ref`.
+- Launched detached follow-up worker:
+  - output root: `artifacts/releases/post-endurance/followup-20260215-193837`,
+  - launcher pid: `3419283`,
+  - first status poll (`2026-02-15T18:38:38Z`) confirmed endurance still running
+    (`chaos_cycles_completed=110`, `restart_runs_completed=18`).
+- Chosen default follow-up gate mode `run_gate_endurance=0` to consume the already-running dedicated
+  8-hour endurance evidence instead of duplicating another 8-hour gate cycle.
+- Revalidated in-flight TODO blocker status (`2026-02-15T18:50:44Z`) and kept final release-tagging
+  blocked on the same condition: endurance run remains active (`chaos_cycles_completed=135`,
+  `restart_runs_completed=22`) and queued follow-up summary is intentionally absent until endurance
+  `status=pass`.
+- Added lightweight guardrail validation for `scripts/alpha-post-endurance-followup.sh` before
+  commit:
+  - syntax check: `bash -n` passed,
+  - missing-endurance-path invocation fails fast with explicit error,
+  - invalid numeric argument invocation fails fast with explicit error.

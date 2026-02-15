@@ -270,3 +270,10 @@
   `server.release.release_notes_generation`.
 - `docs/releases/alpha-bug-bash-checklist.md` now records closure evidence and marks checklist/sign-off complete for the latest isolated-port acceptance/gate evidence set.
 - `docs/releases/alpha-acceptance-checklist.md` now records live 8-hour endurance status snapshot details and marks release metadata checklist items complete with the latest generated alpha notes file.
+- Added `scripts/alpha-post-endurance-followup.sh` to automate the final TODO path by waiting for
+  the active endurance run to pass, then executing default-port acceptance+regression and alpha
+  release-gate follow-up with baseline-tag release-note generation.
+- Updated `README.md`, `AGENTS.md`, `docs/decision-log.md`, and `docs/project-status.md` with the
+  queued post-endurance follow-up workflow and active worker evidence paths.
+- Refreshed release-monitoring docs with a new endurance/follow-up status snapshot and helper-script
+  validation evidence while final release tagging remains blocked on the in-flight 8-hour run.
