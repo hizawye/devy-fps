@@ -730,3 +730,13 @@
     - `tail -n 40 artifacts/releases/post-endurance/finalize-20260215-195526/status.log`,
     - `cat artifacts/releases/post-endurance/finalize-20260215-195526/summary.txt`,
   - once finalizer summary is `status=pass`, release commit/tag is already applied (`chore(release): v0.2.0-alpha` + `v0.2.0-alpha`).
+- Refreshed TODO monitor checkpoint with live worker liveness:
+  - monitor snapshot (`2026-02-15T19:30:23Z`):
+    - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+    - endurance state: `process_state=running`, `chaos_cycles_completed=228`, `restart_runs_completed=38`,
+    - follow-up worker remains active and waiting (`pid=3419283`, summary still missing by design),
+    - finalizer worker remains active and waiting (`pid=3496294`, latest status: `[2026-02-15T19:29:27Z] waiting: summary not found`).
+  - direct process liveness checks:
+    - endurance worker `3365108` active (`etime=01:40:25`),
+    - follow-up worker `3419283` active (`etime=51:46`),
+    - finalizer worker `3496294` active (`etime=34:57`).
