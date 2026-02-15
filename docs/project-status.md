@@ -989,3 +989,4 @@
   - No active test blocker after harness fixes below.
 - Next immediate starting point:
   - Implement A1 authoritative chunk-sync consumption in interactive client.
+- CI follow-up: added `builtin-baseline` to `vcpkg.json` after push-time workflow failure (`run-vcpkg` baseline missing); local configure remains green.
