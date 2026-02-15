@@ -278,6 +278,7 @@
 ## Blockers / Bugs
 - No active build/test blockers in this environment for debug-vcpkg flow.
 - Repository history is now moving toward release-ready baselining (current docs/code state prepared for baseline commit), but no tags exist yet (`git describe --tags --abbrev=0` returns no tags), so final alpha notes/tag cut still needs at least one explicit baseline tag/ref.
+- Baseline release-prep history checkpoint is now committed locally at `234e984` (`feat(alpha): baseline roadmap implementation for release prep`), giving a concrete commit ref for release-note range anchoring even before a formal baseline tag is created.
 - GitHub-hosted workflow execution still pending from this local environment:
   - `.github/workflows/ci.yml` has not yet been run in Actions for branch protection verification.
   - updated `.github/workflows/reliability.yml` retention settings have not yet been validated on a scheduled run.
@@ -289,6 +290,6 @@
 - Finish alpha candidate sign-off once the in-progress endurance run completes:
   - monitor run progress and final status:
     - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
-  - after endurance completion, create/mark baseline release ref (tag or explicit commit ref) for release-note range anchoring,
-  - run `scripts/alpha-release-gate.sh v0.x.y-alpha config/server_test.json debug-vcpkg 8 8 480 artifacts/releases/alpha-gate/candidate 1 <previous-tag-or-ref>`,
+  - optionally tag the current baseline checkpoint (`234e984`) for cleaner release-note range anchors,
+  - run `scripts/alpha-release-gate.sh v0.x.y-alpha config/server_test.json debug-vcpkg 8 8 480 artifacts/releases/alpha-gate/candidate 1 234e984`,
   - commit release notes/docs and create `chore(release): v0.x.y-alpha` tag.

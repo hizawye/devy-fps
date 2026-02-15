@@ -229,3 +229,6 @@
 - Chosen to perform the TODO roadmap's "baseline history" precondition now (before final tag cut)
   so release-note ranges can anchor on an explicit post-roadmap commit instead of the repository
   bootstrap commit.
+- Committed the full roadmap implementation baseline as
+  `234e984` (`feat(alpha): baseline roadmap implementation for release prep`) so final alpha gate
+  tooling can use an explicit from-ref even without a prior release tag.
