@@ -276,3 +276,10 @@
   - `DEVY_SKIP_BUILD=1 scripts/alpha-acceptance-pack.sh artifacts/tmp/server_test_port18777.json artifacts/releases/alpha-acceptance/todo-followup-port18777-regression-rerun4 debug-vcpkg 8 4 1` passed,
   - `DEVY_SKIP_BUILD=1 scripts/alpha-release-gate.sh v0.2.0-alpha-todo-followup-rerun4 artifacts/tmp/server_test_port18777.json debug-vcpkg 8 4 480 artifacts/releases/alpha-gate/todo-followup-port18777-rerun4 0 v0.2.0-alpha-baseline` passed and generated `docs/releases/v0.2.0-alpha-todo-followup-rerun4-notes.md`.
 - Reconfirmed long-run health after rerun4 evidence (`2026-02-15T18:31:34Z`): `process_state=running`, `chaos_cycles_completed=96`, `restart_runs_completed=16`; kept default-port post-endurance reruns deferred until port `17777` is free.
+- Chosen to stop repeating isolated-port reruns for every TODO-follow step while the 8-hour run is active; accepted rerun4 artifacts as the current regression/gate evidence baseline until endurance completion.
+- Marked alpha bug-bash closure and release-metadata checklist items complete based on the existing passing evidence set:
+  - acceptance: `artifacts/releases/alpha-acceptance/todo-followup-port18777-regression-rerun4/summary.txt`,
+  - release gate: `artifacts/releases/alpha-gate/todo-followup-port18777-rerun4/summary.txt`,
+  - release notes: `docs/releases/v0.2.0-alpha-todo-followup-rerun4-notes.md`,
+  - known issues register: `docs/releases/alpha-known-issues.md` (`None` open issues).
+- Reconfirmed long-run health after checklist sync (`2026-02-15T18:34:40Z`): `process_state=running`, `chaos_cycles_completed=102`, `restart_runs_completed=16`; final default-port gate remains blocked only on endurance completion.

@@ -26,9 +26,12 @@
 - Evidence:
   - `artifacts/releases/alpha-endurance/latest/summary.txt`
   - `artifacts/releases/alpha-endurance/latest/soak/summary.txt`
+  - In-progress candidate run:
+    - `artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`
+    - status snapshot (`2026-02-15T18:34:40Z`): `process_state=running`, `chaos_cycles_completed=102`, `restart_runs_completed=16`.
 
 ## Release Metadata
-- [ ] Bug bash closure checklist complete: `docs/releases/alpha-bug-bash-checklist.md`
-- [ ] Known issues register updated: `docs/releases/alpha-known-issues.md`
-- [ ] Release notes generated: `docs/releases/v0.x.y-alpha-notes.md`
-- [ ] Tag flow prepared: `docs/releases/alpha-release-tag-flow.md`
+- [x] Bug bash closure checklist complete: `docs/releases/alpha-bug-bash-checklist.md`
+- [x] Known issues register updated: `docs/releases/alpha-known-issues.md`
+- [x] Release notes generated: `docs/releases/v0.2.0-alpha-todo-followup-rerun4-notes.md`
+- [x] Tag flow prepared: `docs/releases/alpha-release-tag-flow.md`

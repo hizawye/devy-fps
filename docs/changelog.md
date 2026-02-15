@@ -268,3 +268,5 @@
   git-log output has no trailing newline (fixes zero-commit output on single-commit ranges).
 - `.github/workflows/ci.yml` integration shard regex now also includes
   `server.release.release_notes_generation`.
+- `docs/releases/alpha-bug-bash-checklist.md` now records closure evidence and marks checklist/sign-off complete for the latest isolated-port acceptance/gate evidence set.
+- `docs/releases/alpha-acceptance-checklist.md` now records live 8-hour endurance status snapshot details and marks release metadata checklist items complete with the latest generated alpha notes file.

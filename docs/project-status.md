@@ -373,6 +373,17 @@
   - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
   - state: `process_state=running`,
   - progress counters: `chaos_cycles_completed=96`, `restart_runs_completed=16`.
+- Updated release-checklist closure evidence to align with TODO finalization:
+  - marked `docs/releases/alpha-bug-bash-checklist.md` checklist + sign-off as complete with closure evidence tied to:
+    - `artifacts/releases/alpha-acceptance/todo-followup-port18777-regression-rerun4/summary.txt`,
+    - `artifacts/releases/alpha-gate/todo-followup-port18777-rerun4/summary.txt`.
+  - marked release metadata checkboxes in `docs/releases/alpha-acceptance-checklist.md` as complete and linked latest generated notes:
+    - `docs/releases/v0.2.0-alpha-todo-followup-rerun4-notes.md`.
+- Refreshed endurance monitor snapshot after checklist updates:
+  - timestamp: `2026-02-15T18:34:40Z`,
+  - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+  - state: `process_state=running`,
+  - progress counters: `chaos_cycles_completed=102`, `restart_runs_completed=16`.
 
 ## Blockers / Bugs
 - No active build/test blockers in this environment for debug-vcpkg flow.
@@ -391,8 +402,9 @@
 - Finish alpha candidate sign-off once the in-progress endurance run completes:
   - monitor run progress and final status:
     - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
-  - while endurance is active, keep concurrent regression/gate runs on isolated-port fixtures:
-    - `DEVY_TEST_CONFIG_PATH=.../artifacts/tmp/server_test_port18777.json ...`,
+  - while endurance is active, avoid additional duplicate reruns unless code/config changes; current isolated-port evidence baseline is:
+    - `artifacts/releases/alpha-acceptance/todo-followup-port18777-regression-rerun4/summary.txt`,
+    - `artifacts/releases/alpha-gate/todo-followup-port18777-rerun4/summary.txt`,
   - use baseline tag `v0.2.0-alpha-baseline` as `from_ref` for release-note generation,
   - rerun full acceptance+regression on default config once port `17777` is free:
     - `scripts/alpha-acceptance-pack.sh config/server_test.json artifacts/releases/alpha-acceptance/post-endurance debug-vcpkg 8 4 1`,
