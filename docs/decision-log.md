@@ -255,3 +255,8 @@
   - full `scripts/alpha-acceptance-pack.sh ... run_regression=1` passed on isolated port,
   - `scripts/alpha-release-gate.sh v0.2.0-alpha-todo-followup ... run_endurance=0 234e984`
     passed and generated `docs/releases/v0.2.0-alpha-todo-followup-notes.md`.
+- Added annotated baseline tag `v0.2.0-alpha-baseline` on `234e984` to stabilize release-note
+  range inputs for final alpha gate orchestration.
+- Verified baseline-tag note-range wiring with an isolated-port pre-endurance gate run:
+  - `DEVY_SKIP_BUILD=1 scripts/alpha-release-gate.sh v0.2.0-alpha-preendurance-check ... 0 v0.2.0-alpha-baseline`
+  - gate passed and generated `docs/releases/v0.2.0-alpha-preendurance-check-notes.md`.

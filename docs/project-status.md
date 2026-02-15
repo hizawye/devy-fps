@@ -313,11 +313,22 @@
   - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
   - state: `process_state=running`,
   - progress counters: `chaos_cycles_completed=49`, `restart_runs_completed=8`.
+- Added a baseline release-anchor tag for alpha note ranges:
+  - `git tag -a v0.2.0-alpha-baseline 234e984 -m "chore(release): v0.2.0-alpha-baseline"`.
+- Revalidated alpha gate note-range flow against the baseline tag while endurance remains active:
+  - `DEVY_SKIP_BUILD=1 scripts/alpha-release-gate.sh v0.2.0-alpha-preendurance-check artifacts/tmp/server_test_port18777.json debug-vcpkg 8 4 480 artifacts/releases/alpha-gate/preendurance-check-port18777 0 v0.2.0-alpha-baseline`,
+  - gate summary: `artifacts/releases/alpha-gate/preendurance-check-port18777/summary.txt` (`status=pass`),
+  - release notes candidate: `docs/releases/v0.2.0-alpha-preendurance-check-notes.md`.
+- Updated endurance monitor snapshot after the pre-endurance gate run:
+  - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+  - state: `process_state=running`,
+  - progress counters: `chaos_cycles_completed=57`, `restart_runs_completed=9`.
 
 ## Blockers / Bugs
 - No active build/test blockers in this environment for debug-vcpkg flow.
-- Repository history is now moving toward release-ready baselining (current docs/code state prepared for baseline commit), but no tags exist yet (`git describe --tags --abbrev=0` returns no tags), so final alpha notes/tag cut still needs at least one explicit baseline tag/ref.
-- Baseline release-prep history checkpoint is now committed locally at `234e984` (`feat(alpha): baseline roadmap implementation for release prep`), giving a concrete commit ref for release-note range anchoring even before a formal baseline tag is created.
+- Baseline release-note anchor is now available as both commit and tag:
+  - commit: `234e984` (`feat(alpha): baseline roadmap implementation for release prep`),
+  - tag: `v0.2.0-alpha-baseline` (local annotated tag).
 - GitHub-hosted workflow execution still pending from this local environment:
   - `.github/workflows/ci.yml` has not yet been run in Actions for branch protection verification.
   - updated `.github/workflows/reliability.yml` retention settings have not yet been validated on a scheduled run.
@@ -332,8 +343,8 @@
     - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
   - while endurance is active, keep concurrent regression/gate runs on isolated-port fixtures:
     - `DEVY_TEST_CONFIG_PATH=.../artifacts/tmp/server_test_port18777.json ...`,
-  - optionally tag the current baseline checkpoint (`234e984`) for cleaner release-note range anchors,
+  - use baseline tag `v0.2.0-alpha-baseline` as `from_ref` for release-note generation,
   - rerun full acceptance+regression on default config once port `17777` is free:
     - `scripts/alpha-acceptance-pack.sh config/server_test.json artifacts/releases/alpha-acceptance/post-endurance debug-vcpkg 8 4 1`,
-  - run `scripts/alpha-release-gate.sh v0.x.y-alpha config/server_test.json debug-vcpkg 8 8 480 artifacts/releases/alpha-gate/candidate 1 234e984`,
+  - run `scripts/alpha-release-gate.sh v0.x.y-alpha config/server_test.json debug-vcpkg 8 8 480 artifacts/releases/alpha-gate/candidate 1 v0.2.0-alpha-baseline`,
   - commit release notes/docs and create `chore(release): v0.x.y-alpha` tag.
