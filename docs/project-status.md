@@ -335,6 +335,18 @@
   - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
   - state: `process_state=running`,
   - progress counters: `chaos_cycles_completed=67`, `restart_runs_completed=11`.
+- Executed another TODO-follow isolated-port acceptance+regression rerun while endurance remained active:
+  - `DEVY_SKIP_BUILD=1 scripts/alpha-acceptance-pack.sh artifacts/tmp/server_test_port18777.json artifacts/releases/alpha-acceptance/todo-followup-port18777-regression-rerun2 debug-vcpkg 8 4 1`,
+  - acceptance summary: `artifacts/releases/alpha-acceptance/todo-followup-port18777-regression-rerun2/summary.txt` (`status=pass`).
+- Executed another TODO-follow alpha gate rerun against baseline tag while endurance remained active:
+  - `DEVY_SKIP_BUILD=1 scripts/alpha-release-gate.sh v0.2.0-alpha-todo-followup-rerun2 artifacts/tmp/server_test_port18777.json debug-vcpkg 8 4 480 artifacts/releases/alpha-gate/todo-followup-port18777-rerun2 0 v0.2.0-alpha-baseline`,
+  - gate summary: `artifacts/releases/alpha-gate/todo-followup-port18777-rerun2/summary.txt` (`status=pass`),
+  - acceptance summary: `artifacts/releases/alpha-gate/todo-followup-port18777-rerun2/acceptance/summary.txt` (`status=pass`),
+  - release notes candidate: `docs/releases/v0.2.0-alpha-todo-followup-rerun2-notes.md`.
+- Updated endurance monitor snapshot after rerun2:
+  - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+  - state: `process_state=running`,
+  - progress counters: `chaos_cycles_completed=77`, `restart_runs_completed=12`.
 
 ## Blockers / Bugs
 - No active build/test blockers in this environment for debug-vcpkg flow.

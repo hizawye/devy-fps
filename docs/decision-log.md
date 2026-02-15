@@ -260,3 +260,11 @@
 - Verified baseline-tag note-range wiring with an isolated-port pre-endurance gate run:
   - `DEVY_SKIP_BUILD=1 scripts/alpha-release-gate.sh v0.2.0-alpha-preendurance-check ... 0 v0.2.0-alpha-baseline`
   - gate passed and generated `docs/releases/v0.2.0-alpha-preendurance-check-notes.md`.
+- Continued TODO-follow cadence while long endurance remains active:
+  - reran isolated-port full acceptance+regression:
+    - `DEVY_SKIP_BUILD=1 scripts/alpha-acceptance-pack.sh artifacts/tmp/server_test_port18777.json artifacts/releases/alpha-acceptance/todo-followup-port18777-regression-rerun2 debug-vcpkg 8 4 1`,
+    - summary passed at `artifacts/releases/alpha-acceptance/todo-followup-port18777-regression-rerun2/summary.txt`.
+  - reran isolated-port alpha gate against baseline tag:
+    - `DEVY_SKIP_BUILD=1 scripts/alpha-release-gate.sh v0.2.0-alpha-todo-followup-rerun2 artifacts/tmp/server_test_port18777.json debug-vcpkg 8 4 480 artifacts/releases/alpha-gate/todo-followup-port18777-rerun2 0 v0.2.0-alpha-baseline`,
+    - gate/acceptance summaries passed and generated `docs/releases/v0.2.0-alpha-todo-followup-rerun2-notes.md`.
+- Chosen to keep producing fresh isolated-port acceptance/gate evidence while the 8-hour default-port endurance run is in flight so release-readiness regressions are still detected without interrupting endurance evidence capture.
