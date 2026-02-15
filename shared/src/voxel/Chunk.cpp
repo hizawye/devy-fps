@@ -27,12 +27,24 @@ struct Face {
 };
 
 const std::array<Face, 6> kFaces = {
-  Face{{{{1,0,0}}, {{1,1,0}}, {{1,1,1}}, {{1,0,1}}}, {{1.0f, 0.0f, 0.0f}}}, // +X
-  Face{{{{0,0,1}}, {{0,1,1}}, {{0,1,0}}, {{0,0,0}}}, {{-1.0f, 0.0f, 0.0f}}}, // -X
-  Face{{{{0,1,1}}, {{1,1,1}}, {{1,1,0}}, {{0,1,0}}}, {{0.0f, 1.0f, 0.0f}}}, // +Y
-  Face{{{{0,0,0}}, {{1,0,0}}, {{1,0,1}}, {{0,0,1}}}, {{0.0f, -1.0f, 0.0f}}}, // -Y
-  Face{{{{0,0,1}}, {{1,0,1}}, {{1,1,1}}, {{0,1,1}}}, {{0.0f, 0.0f, 1.0f}}}, // +Z
-  Face{{{{1,0,0}}, {{0,0,0}}, {{0,1,0}}, {{1,1,0}}}, {{0.0f, 0.0f, -1.0f}}}  // -Z
+  Face{{std::array<int, 3>{1, 0, 0}, std::array<int, 3>{1, 1, 0},
+        std::array<int, 3>{1, 1, 1}, std::array<int, 3>{1, 0, 1}},
+       std::array<float, 3>{1.0f, 0.0f, 0.0f}}, // +X
+  Face{{std::array<int, 3>{0, 0, 1}, std::array<int, 3>{0, 1, 1},
+        std::array<int, 3>{0, 1, 0}, std::array<int, 3>{0, 0, 0}},
+       std::array<float, 3>{-1.0f, 0.0f, 0.0f}}, // -X
+  Face{{std::array<int, 3>{0, 1, 1}, std::array<int, 3>{1, 1, 1},
+        std::array<int, 3>{1, 1, 0}, std::array<int, 3>{0, 1, 0}},
+       std::array<float, 3>{0.0f, 1.0f, 0.0f}}, // +Y
+  Face{{std::array<int, 3>{0, 0, 0}, std::array<int, 3>{1, 0, 0},
+        std::array<int, 3>{1, 0, 1}, std::array<int, 3>{0, 0, 1}},
+       std::array<float, 3>{0.0f, -1.0f, 0.0f}}, // -Y
+  Face{{std::array<int, 3>{0, 0, 1}, std::array<int, 3>{1, 0, 1},
+        std::array<int, 3>{1, 1, 1}, std::array<int, 3>{0, 1, 1}},
+       std::array<float, 3>{0.0f, 0.0f, 1.0f}}, // +Z
+  Face{{std::array<int, 3>{1, 0, 0}, std::array<int, 3>{0, 0, 0},
+        std::array<int, 3>{0, 1, 0}, std::array<int, 3>{1, 1, 0}},
+       std::array<float, 3>{0.0f, 0.0f, -1.0f}} // -Z
 };
 
 const std::array<std::array<int, 3>, 6> kNeighborOffsets = {
@@ -49,8 +61,9 @@ Chunk::Chunk() {
   blocks_.fill(0);
 }
 
-int Chunk::index(int x, int y, int z) const {
-  return x + (y * kChunkSize) + (z * kChunkSize * kChunkSize);
+std::size_t Chunk::index(int x, int y, int z) const {
+  const int linear = x + (y * kChunkSize) + (z * kChunkSize * kChunkSize);
+  return static_cast<std::size_t>(linear);
 }
 
 bool Chunk::is_inside(int x, int y, int z) const {

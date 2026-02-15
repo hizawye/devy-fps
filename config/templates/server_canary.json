@@ -1,0 +1,64 @@
+{
+  "mode": "ffa",
+  "match_time_minutes": 15,
+  "port": 17778,
+  "map": {
+    "size_km2": 2,
+    "chunks_x": 24,
+    "chunks_z": 24,
+    "chunk_size": 32,
+    "world_height": 128,
+    "preview_chunks": 4,
+    "draw_distance_chunks": 5
+  },
+  "max_players": 16,
+  "session": {
+    "heartbeat_timeout_ms": 3000
+  },
+  "runtime": {
+    "tick_rate_hz": 20,
+    "snapshot_interval_ticks": 2,
+    "input_queue_capacity": 512,
+    "movement_speed_units_per_second": 6.0,
+    "match_state_broadcast_on_snapshot": false,
+    "snapshot_include_match_scoreboard": false,
+    "profiling": {
+      "enabled": true,
+      "report_interval_ticks": 120,
+      "history_size_ticks": 240,
+      "tick_lag_tolerance_ms": 0.5,
+      "alerts": {
+        "max_tick_lag_rate": 0.2,
+        "max_packet_drop_rate": 0.2,
+        "max_parse_error_rate": 0.1,
+        "min_active_players": 1
+      }
+    }
+  },
+  "combat": {
+    "starting_health": 100,
+    "hitscan_range_units": 96.0,
+    "projectile_range_units": 72.0,
+    "projectile_speed_units_per_second": 40.0,
+    "hit_radius_units": 0.75
+  },
+  "inventory": {
+    "spawn_interval_ticks": 45,
+    "max_active_spawns": 32,
+    "pickup_queue_capacity": 512,
+    "pickup_radius_units": 2.5,
+    "max_items_per_player": 16,
+    "max_weight_per_player": 40,
+    "death_drop_spread_units": 0.75
+  },
+  "match": {
+    "pre_match_seconds": 3,
+    "duration_seconds": 900,
+    "respawns_per_player": 2,
+    "respawn_delay_seconds": 2,
+    "min_players_to_start": 2
+  },
+  "team_size": 1,
+  "respawns": 2,
+  "loot_drop": "all"
+}

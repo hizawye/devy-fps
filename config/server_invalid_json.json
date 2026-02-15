@@ -1,0 +1,8 @@
+{
+  "port": 7777,
+  "max_players": 16,
+  "runtime": {
+    "tick_rate_hz": 30
+  ,
+  "loot_drop": "all"
+}

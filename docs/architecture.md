@@ -1,0 +1,145 @@
+# devy-fps Architecture Snapshot
+
+## Components
+- `shared/`: protocol, config loading, logging, voxel, and gameplay contracts used by both client and server.
+- `engine/`: rendering/input/physics application layer used by the client executable.
+- `client/`: interactive FPS client loop + world preview generation + `client_runtime` modules:
+  - `PredictionReconciler`: local input sequencing/prediction and authoritative snapshot reconciliation from `last_processed_input_seq`.
+- `tools/`:
+  - `devy_load_client`: synthetic ENet load generator with optional chaos controls (`--malformed-rate-hz`, `--malformed-family`, `--malformed-burst-size`, disconnect/reconnect churn flags).
+- `server/`: authoritative ENet host + `server_runtime` modules:
+  - `SessionManager`: handshake/session lifecycle, slot ownership, disconnect cleanup, heartbeat timeout eviction.
+  - `AuthoritativeLoop`: fixed tick scheduler, bounded input queueing, deterministic input drain ordering, snapshot cadence scheduling.
+  - `MovementSimulation`: authoritative per-player movement state integration + last-processed input acknowledgements for reconciliation scaffolding.
+  - `WorldReplication`: per-player chunk interest sets, distance-based relevance culling, and chunk revision delta tracking for snapshot replication.
+  - `BlockInteraction`: authoritative block break/place validation, conflict handling, and world mutation application.
+  - `CombatSimulation`: deterministic weapon-fire authority, damage/death resolution, and per-player combat state.
+  - `InventoryLootSimulation`: deterministic scheduled treasure spawning, pickup validation, inventory limits, and death-drop conversion.
+  - `MatchLifecycleSimulation`: authoritative pre-match/in-match/post-match state machine, timer authority, respawn budget enforcement, scoreboard aggregation, and deterministic winner resolution.
+  - `ServerConfigValidation`: boot-time server config schema/type/range validation with fail-fast startup rejection.
+
+## Build/Test Topology
+- Top-level CMake configures `shared`, `engine`, `client`, `server`.
+- `BUILD_TESTING=ON` adds `tests/`:
+  - `shared.unit`: Catch2 suite for core shared logic.
+  - `client.unit`: Catch2 suite for prediction/reconciliation behavior (`PredictionReconciler`) including latency/loss simulation matrix.
+  - `server.unit`: Catch2 suite for server runtime behavior (`SessionManager`, `AuthoritativeLoop`, `MovementSimulation`, `BlockInteraction`, `CombatSimulation`, `InventoryLootSimulation`, `MatchLifecycleSimulation`).
+  - `server.smoke`: launches server in timed headless mode and asserts clean exit.
+  - `server.config.invalid_*`: CTest integration checks that invalid configs (schema/range and malformed JSON) are rejected at boot with non-zero exit and actionable error logs.
+  - `server.reliability.*`: CTest integration checks for watchdog restart behavior, chaos packet/disconnect drills, and forced restart recovery flow.
+  - `server.reliability.soak_short`: bounded 1-minute reliability soak test (rotating chaos + periodic restart drill) for CI/local regression coverage.
+  - `server.release.*`: release-operations checks for package install smoke validation, protocol compatibility drill (`unsupported_version` rejects while valid clients still join), and candidate->rollback rehearsal.
+- CI reliability lanes are defined in `.github/workflows/reliability.yml`:
+  - PR/push/manual reliability drill lane for `server.reliability.*` checks,
+  - scheduled/manual soak lane for extended-duration reliability evidence capture.
+- Primary CI lanes are defined in `.github/workflows/ci.yml`:
+  - build matrix (`debug-vcpkg`, `release-vcpkg`),
+  - test shards (`shared.unit`, `client.unit`, `server.unit`, integration smoke/config/telemetry),
+  - verification checks (CMake cache stability + startup failure injection),
+  - deterministic artifact packaging and reproducible hash validation.
+  - integration shard also runs `server.release.*` checks.
+
+## Runtime Contracts Added in This Iteration
+- Server CLI supports `--smoke-seconds <n>` for deterministic headless boot checks.
+- Fixture config `config/server_test.json` isolates smoke execution on test-friendly settings.
+- Presets separate system toolchain (`debug`, `release`) from vcpkg toolchain (`debug-vcpkg`, `release-vcpkg`).
+- Server config now includes optional `session.heartbeat_timeout_ms` for stale session eviction tuning.
+- Server config now includes optional `runtime` controls:
+  - `tick_rate_hz` (authoritative update cadence),
+  - `snapshot_interval_ticks` (snapshot every N ticks),
+  - `input_queue_capacity` (global pending input cap),
+  - `movement_speed_units_per_second` (authoritative horizontal movement speed).
+- Server config now includes optional `runtime.profiling` controls:
+  - `enabled` (enable/disable runtime metrics emission),
+  - `report_interval_ticks` (emit one profile report every N ticks),
+  - `history_size_ticks` (rolling window capacity for tick percentile stats),
+  - `tick_lag_tolerance_ms` (allowed overrun beyond tick budget before lag counter increments),
+  - `alerts` thresholds:
+    - `max_tick_lag_rate`
+    - `max_packet_drop_rate`
+    - `max_parse_error_rate`
+    - `min_active_players`
+- Server startup now performs strict config validation across known server config fields and exits
+  early on invalid types/ranges (instead of silently clamping invalid inputs).
+- Config load/parse failures now hard-fail startup (`try_load_json(...)` + explicit boot rejection).
+- Reliability operations scripts:
+  - `scripts/watchdog-server.sh`: bounded restart loop with per-attempt logs and rotation.
+  - `scripts/chaos-drill.sh`: malformed packet flood + disconnect churn scenario driver with malformed family/burst controls and error-category coverage assertions.
+  - `scripts/restart-recovery.sh`: pre-restart/post-restart load scenario driver with pass/fail summary.
+  - `scripts/reliability-soak.sh`: multi-cycle reliability soak orchestrator (watchdog precheck + rotating chaos scenarios + periodic restart recovery + trend summaries).
+- Release operations scripts:
+  - `scripts/launch-profile.sh`: profile-driven server/client launch orchestration from `profiles/launch/*.env`.
+  - `scripts/install-package-smoke.sh`: package extract + runtime smoke/install validation from packaged binaries.
+  - `scripts/protocol-compat-check.sh`: protocol upgrade/downgrade drill via unsupported-version malformed traffic injection.
+  - `scripts/rollback-rehearsal.sh`: candidate package deployment followed by baseline rollback rehearsal.
+  - `scripts/generate-release-notes.sh`: commit-history release note generation grouped by Conventional Commit type.
+- Release config templates are versioned under `config/templates/` for canary/release profile starting points.
+- Rollback operational runbook is maintained in `docs/rollback-strategy.md`.
+- Server world replication currently derives interest radius from `map.draw_distance_chunks` and emits revision-based chunk sync deltas in `state_snapshot.payload.chunk_sync`.
+- Server block interaction validates block IDs from `config/blocks.json` and uses `block_id=0` as air/break semantics.
+- Server config now includes optional `inventory` controls:
+  - `spawn_interval_ticks`
+  - `max_active_spawns`
+  - `pickup_queue_capacity`
+  - `pickup_radius_units`
+  - `max_items_per_player`
+  - `max_weight_per_player`
+  - `death_drop_spread_units`
+- Server loot drop policy is controlled by top-level `loot_drop` (`all` or `none`).
+- Server config now includes optional `match` controls:
+  - `pre_match_seconds`
+  - `duration_seconds`
+  - `respawns_per_player`
+  - `respawn_delay_seconds`
+  - `min_players_to_start`
+- Server runtime now gates `weapon_fire` and `treasure_pickup` handling to `MatchPhase::InMatch`.
+- Server tick flow now resolves lifecycle state each frame and:
+  - applies respawns into combat state,
+  - emits reliable `match_state` updates on state transitions and snapshot cadence,
+  - emits snapshot `events` entries for `respawn_event` and `match_state_changed`.
+
+## Protocol v1 Contracts (Current)
+- Packet envelope is now versioned JSON:
+  - `version` (integer, optional for legacy decode; defaults to `1`)
+  - `type` (integer message id)
+  - `payload` (JSON object)
+- Supported protocol window is currently fixed to v1 (`min=1`, `max=1`).
+- Message schema table is centralized in `shared/src/net/Protocol.cpp` with required payload fields per message:
+  - `join_request`: `player_name`
+  - `join_accept`: `message`, `max_players`, `protocol_version`
+  - `player_input`: `player_id`, `input_seq`, `move_x`, `move_y`, `jump`, `fire`
+  - `state_snapshot`: `tick`, `players`
+  - `block_update`: `x`, `y`, `z`, `block_id` (+ optional `player_id`)
+  - `inventory_update`: `player_id`, `coins`
+  - `damage_event`: `attacker_id`, `victim_id`, `damage`, `lethal`
+  - `match_state`: `state`, `remaining_seconds` (optional `scoreboard`)
+  - `heartbeat`: `player_id`
+  - `weapon_fire`: `player_id`, `shot_seq`, `weapon_id`, `origin`, `direction`
+  - `treasure_pickup`: `player_id`, `pickup_seq`, `spawn_id`
+- Server receive flow now parses via `try_deserialize` and drops invalid packets with structured error labels.
+- Server join acceptance is now gated on validated `join_request` payloads; raw ENet connect events no longer imply admission.
+- Session lifecycle flow:
+  - validated join request allocates or reclaims a player slot,
+  - disconnect/timeout frees active slot ownership,
+  - reconnect with same player name reuses reserved identity slot when available.
+- Tick/snapshot flow (current scaffold):
+  - validated `player_input` packets enqueue into runtime with sequence/order checks,
+  - runtime advances on fixed tick deadlines with catch-up when needed,
+  - queued inputs are drained deterministically per tick,
+  - movement simulation consumes queued inputs per tick and advances player position/velocity state,
+  - combat simulation resolves weapon fire and emits authoritative damage/death events,
+  - inventory/loot simulation resolves scheduled treasure spawns, pickup outcomes, and death-drop spawns,
+  - match lifecycle simulation resolves phase transitions, timer progression, respawn exhaustion, and winner selection,
+  - `state_snapshot` packets are broadcast to active sessions on configured tick cadence, including per-player position/velocity and `last_processed_input_seq`,
+  - player snapshot entries include inventory fields (`coins`, `inventory_weight`, `inventory_items`, `last_pickup_seq`) and match fields (`respawns_remaining`, `eliminated`),
+  - snapshots include active `treasure_spawns` and loot event entries under `events`,
+  - snapshots include top-level `match_state` payload for HUD state reconstruction,
+  - each recipient snapshot includes a per-player `chunk_sync` object (`added`, `removed`, `deltas`) derived from `WorldReplication`.
+  - validated `block_update` packets mutate world state authoritatively; successful applies mark dirty chunks for replication deltas.
+  - when runtime profiling is enabled, each report window emits:
+    - tick timings (`avg/p95/max`),
+    - per-phase timing (`movement`, `combat`, `inventory`, `match_lifecycle`, `broadcast`, `snapshot_build`, `snapshot_send`),
+    - outbound packet counts/bytes by message type,
+    - peak state pressure estimates from active sessions, pending inputs/events, and active treasure spawns,
+    - operational diagnostics (`tick lag`, inbound `drop/parse-error` rates, command rejection count, active-player averages),
+    - machine-parseable summary stream lines (`Runtime diagnostics json=...`) with threshold-based `alerts` arrays.

@@ -1,0 +1,100 @@
+name: Reliability
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      soak_minutes:
+        description: "Soak duration in minutes"
+        required: false
+        default: "30"
+      soak_clients:
+        description: "Concurrent synthetic clients"
+        required: false
+        default: "8"
+  schedule:
+    - cron: "0 6 * * *"
+
+jobs:
+  reliability-drills:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: "vcpkg.json"
+
+      - name: Configure
+        run: scripts/configure.sh debug-vcpkg
+
+      - name: Build
+        run: scripts/build.sh debug-vcpkg
+
+      - name: Reliability CTest lane
+        run: >
+          ctest --preset debug-vcpkg
+          -R '^server\.reliability\.(watchdog_restart|chaos_drill|restart_recovery|soak_short)$'
+          --output-on-failure
+
+      - name: Upload reliability artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reliability-drills-artifacts
+          path: |
+            artifacts/reliability
+            build/**/Testing/Temporary/LastTest.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  reliability-soak:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: "vcpkg.json"
+
+      - name: Configure
+        run: scripts/configure.sh debug-vcpkg
+
+      - name: Build
+        run: scripts/build.sh debug-vcpkg
+
+      - name: Reliability soak
+        run: |
+          soak_minutes="${{ github.event.inputs.soak_minutes }}"
+          soak_clients="${{ github.event.inputs.soak_clients }}"
+          if [[ -z "${soak_minutes}" ]]; then
+            soak_minutes="30"
+          fi
+          if [[ -z "${soak_clients}" ]]; then
+            soak_clients="8"
+          fi
+          scripts/reliability-soak.sh \
+            config/server_test.json \
+            "${soak_minutes}" \
+            "${soak_clients}" \
+            "artifacts/reliability/ci-soak/${GITHUB_RUN_ID}"
+
+      - name: Upload soak artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reliability-soak-artifacts
+          path: artifacts/reliability
+          retention-days: 30
+          if-no-files-found: ignore

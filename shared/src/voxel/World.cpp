@@ -7,10 +7,20 @@
 namespace devy::voxel {
 
 namespace {
+bool world_to_chunk_local(int world_axis, int& chunk_axis, int& local_axis) {
+  if (world_axis < 0) {
+    return false;
+  }
+  chunk_axis = world_axis / kChunkSize;
+  local_axis = world_axis % kChunkSize;
+  return true;
+}
+
 float hash_noise(int x, int z) {
   uint32_t n = static_cast<uint32_t>(x * 73856093) ^ static_cast<uint32_t>(z * 19349663);
   n = (n << 13) ^ n;
-  return 1.0f - ((n * (n * n * 15731u + 789221u) + 1376312589u) & 0x7fffffff) / 1073741824.0f;
+  const uint32_t masked = (n * (n * n * 15731u + 789221u) + 1376312589u) & 0x7fffffffU;
+  return 1.0f - static_cast<float>(masked) / 1073741824.0f;
 }
 
 float smooth_noise(int x, int z) {
@@ -23,8 +33,8 @@ float smooth_noise(int x, int z) {
 float interpolated_noise(float x, float z) {
   int int_x = static_cast<int>(std::floor(x));
   int int_z = static_cast<int>(std::floor(z));
-  float frac_x = x - int_x;
-  float frac_z = z - int_z;
+  float frac_x = x - static_cast<float>(int_x);
+  float frac_z = z - static_cast<float>(int_z);
 
   float v1 = smooth_noise(int_x, int_z);
   float v2 = smooth_noise(int_x + 1, int_z);
@@ -56,7 +66,8 @@ int sample_height(int world_x, int world_z, int max_height) {
     return 0;
   }
   float height_noise = perlin(static_cast<float>(world_x), static_cast<float>(world_z));
-  int height = static_cast<int>((height_noise + 1.0f) * 0.5f * max_height);
+  int height =
+      static_cast<int>((height_noise + 1.0f) * 0.5f * static_cast<float>(max_height));
   height = std::clamp(height, 1, max_height);
   return height;
 }
@@ -112,6 +123,58 @@ Chunk* World::get_chunk(int chunk_x, int chunk_y, int chunk_z) {
     return nullptr;
   }
   return &it->second;
+}
+
+const Chunk* World::get_chunk(int chunk_x, int chunk_y, int chunk_z) const {
+  ChunkCoord key{chunk_x, chunk_y, chunk_z};
+  auto it = chunks_.find(key);
+  if (it == chunks_.end()) {
+    return nullptr;
+  }
+  return &it->second;
+}
+
+std::optional<BlockId> World::block_at(int world_x, int world_y, int world_z) const {
+  int chunk_x = 0;
+  int chunk_y = 0;
+  int chunk_z = 0;
+  int local_x = 0;
+  int local_y = 0;
+  int local_z = 0;
+
+  if (!world_to_chunk_local(world_x, chunk_x, local_x) ||
+      !world_to_chunk_local(world_y, chunk_y, local_y) ||
+      !world_to_chunk_local(world_z, chunk_z, local_z)) {
+    return std::nullopt;
+  }
+
+  const Chunk* chunk = get_chunk(chunk_x, chunk_y, chunk_z);
+  if (!chunk) {
+    return std::nullopt;
+  }
+  return chunk->get(local_x, local_y, local_z);
+}
+
+bool World::set_block(int world_x, int world_y, int world_z, BlockId id) {
+  int chunk_x = 0;
+  int chunk_y = 0;
+  int chunk_z = 0;
+  int local_x = 0;
+  int local_y = 0;
+  int local_z = 0;
+
+  if (!world_to_chunk_local(world_x, chunk_x, local_x) ||
+      !world_to_chunk_local(world_y, chunk_y, local_y) ||
+      !world_to_chunk_local(world_z, chunk_z, local_z)) {
+    return false;
+  }
+
+  Chunk* chunk = get_chunk(chunk_x, chunk_y, chunk_z);
+  if (!chunk) {
+    return false;
+  }
+  chunk->set(local_x, local_y, local_z, id);
+  return true;
 }
 
 const std::unordered_map<ChunkCoord, Chunk, ChunkCoordHash>& World::chunks() const {

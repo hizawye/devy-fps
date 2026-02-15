@@ -1,3 +1,4 @@
+#include "client/WeaponFireEmitter.h"
 #include "engine/Application.h"
 #include "engine/Camera.h"
 #include "engine/Input.h"
@@ -14,6 +15,7 @@
 #include <SDL2/SDL.h>
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <string>
 
@@ -61,6 +63,13 @@ int main(int argc, char** argv) {
   auto treasures = devy::game::load_treasures(resolve_path("config/treasure.json"));
   devy::log::write(devy::log::Level::Info, "Loaded weapons: " + std::to_string(weapons.size()));
   devy::log::write(devy::log::Level::Info, "Loaded treasures: " + std::to_string(treasures.size()));
+  std::string active_weapon_id = "rifle";
+  if (!weapons.empty() && !weapons.front().id.empty()) {
+    active_weapon_id = weapons.front().id;
+  }
+  constexpr uint32_t local_player_id = 1U;
+  devy::client::WeaponFireEmitter weapon_fire_emitter{};
+  bool fire_button_was_down = false;
 
   int preview_chunks = server_config["map"].value("preview_chunks", 8);
   int gen_chunks_x = std::min(chunks_x, preview_chunks);
@@ -160,6 +169,37 @@ int main(int argc, char** argv) {
     glm::vec3 eye_pos = player.position();
     eye_pos.y += player.eye_height();
     camera.set_position(eye_pos);
+
+    int mouse_x = 0;
+    int mouse_y = 0;
+    const Uint32 mouse_mask = SDL_GetMouseState(&mouse_x, &mouse_y);
+    static_cast<void>(mouse_x);
+    static_cast<void>(mouse_y);
+    const bool fire_button_down = (mouse_mask & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0U;
+    if (fire_button_down && !fire_button_was_down) {
+      const glm::vec3 view = camera.forward();
+      const float planar_direction_x = view.x;
+      const float planar_direction_y = view.z;
+      const float planar_direction_length_sq =
+          planar_direction_x * planar_direction_x + planar_direction_y * planar_direction_y;
+      if (std::isfinite(planar_direction_length_sq) && planar_direction_length_sq > 0.000001F) {
+        const auto fire_result = weapon_fire_emitter.emit(
+            local_player_id, active_weapon_id, eye_pos.x, eye_pos.z, planar_direction_x,
+            planar_direction_y, SDL_GetTicks64());
+        if (fire_result.accepted()) {
+          devy::log::write(devy::log::Level::Info,
+                           "Queued weapon_fire shot_seq=" +
+                               std::to_string(fire_result.shot_seq) + " weapon_id=" +
+                               active_weapon_id + ".");
+        } else {
+          devy::log::write(
+              devy::log::Level::Warn,
+              "Rejected local fire request: " +
+                  std::string(devy::client::to_string(fire_result.status)) + ".");
+        }
+      }
+    }
+    fire_button_was_down = fire_button_down;
 
     int width = 0;
     int height = 0;

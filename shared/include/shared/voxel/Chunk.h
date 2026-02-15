@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -41,7 +42,7 @@ public:
 private:
   std::array<BlockId, kChunkVolume> blocks_{};
 
-  int index(int x, int y, int z) const;
+  std::size_t index(int x, int y, int z) const;
   bool is_inside(int x, int y, int z) const;
 };
 

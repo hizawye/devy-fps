@@ -1,0 +1,102 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/presets/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BUILD_TESTING": "ON",
+        "DEVY_WARNINGS_AS_ERRORS": "ON",
+        "DEVY_ENABLE_CLANG_TIDY": "OFF"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "debug-vcpkg",
+      "inherits": "debug",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      }
+    },
+    {
+      "name": "release-vcpkg",
+      "inherits": "release",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "jobs": 0
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "jobs": 0
+    },
+    {
+      "name": "debug-vcpkg",
+      "configurePreset": "debug-vcpkg",
+      "jobs": 0
+    },
+    {
+      "name": "release-vcpkg",
+      "configurePreset": "release-vcpkg",
+      "jobs": 0
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "debug-vcpkg",
+      "configurePreset": "debug-vcpkg",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "release-vcpkg",
+      "configurePreset": "release-vcpkg",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

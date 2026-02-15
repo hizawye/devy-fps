@@ -1,0 +1,8 @@
+{
+  "port": 7777,
+  "max_players": 16,
+  "runtime": {
+    "tick_rate_hz": 0,
+    "snapshot_interval_ticks": 2
+  }
+}

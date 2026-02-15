@@ -1,0 +1,294 @@
+# Project Status (2026-02-15)
+
+## Current Progress
+- Completed Phase 0 baseline (guardrails, presets/scripts, initial test harness, smoke fixture, docs memory files).
+- Completed Phase 1 M1.1 protocol hardening (versioned envelope, schema contracts, structured parse errors, malformed/version tests).
+- Completed Phase 1 M1.2 connection/session lifecycle (join gating, slot lifecycle, heartbeat + timeout eviction, reconnect identity).
+- Completed a Phase 1 M1.3 implementation slice (tick-driven authoritative loop):
+  - added `server::AuthoritativeLoop` with fixed-rate tick scheduling (`tick_rate_hz`) and catch-up stepping,
+  - added bounded player input queueing (`input_queue_capacity`) with out-of-order rejection by `(player_id, input_seq)`,
+  - added deterministic per-tick input drain order (player ID ascending, then input sequence order),
+  - added snapshot cadence control (`snapshot_interval_ticks`) and server broadcast of `state_snapshot` packets on cadence,
+  - integrated runtime config parsing + validation in `server/src/main.cpp`,
+  - added runtime-focused unit tests for tick drift horizon, queue overflow handling, deterministic ordering, and snapshot cadence.
+- Completed a Phase 2 M2.1 implementation slice (authoritative movement):
+  - added `server::MovementSimulation` for deterministic server-side movement integration from tick-drained inputs,
+  - normalized/clamped movement vectors and applied configurable speed (`runtime.movement_speed_units_per_second`),
+  - tracked per-player `last_processed_input_seq` acknowledgements for reconciliation scaffolding,
+  - integrated movement simulation into server tick execution and `state_snapshot` payloads (position/velocity/ack fields),
+  - added runtime-focused unit tests in `tests/server/MovementSimulationTests.cpp`.
+- Completed a Phase 2 M2.1 implementation slice (client prediction/reconciliation scaffolding):
+  - added `client_runtime` library with `client::PredictionReconciler`,
+  - added local input sequencing + pending input queueing + deterministic movement prediction matching server movement rules,
+  - added snapshot consumer path for `state_snapshot.players[*].last_processed_input_seq` extraction and reconciliation replay,
+  - added `client.unit` test target and `tests/client/PredictionReconcilerTests.cpp`,
+  - added latency/loss divergence matrix coverage (`50/100/200ms` x `1/3/5%`) asserting bounded correction drift.
+- Completed a Phase 2 M2.2 implementation slice (world state replication scaffolding):
+  - added `server::WorldReplication` runtime module with per-player chunk subscription memory, distance-based relevance culling, and chunk-revision delta tracking,
+  - integrated server-side world generation in `server/src/main.cpp` and per-recipient `chunk_sync` payloads in `state_snapshot` packets (`added`, `removed`, `deltas`),
+  - added replication lifecycle cleanup hooks on disconnect/timeout and advertised `world_replication_v1` feature flag during join,
+  - extended protocol tests to cover `state_snapshot.chunk_sync`,
+  - added `server.unit` coverage in `tests/server/WorldReplicationTests.cpp` for cold-join sync, delta emission, and subscription churn.
+- Completed a Phase 2 M2.3 implementation slice (block interaction path):
+  - added `server::BlockInteraction` runtime module with authoritative break/place validation and conflict resolution,
+  - integrated `block_update` receive handling in `server/src/main.cpp` with session gating, optional `player_id` consistency checks, payload range checks, and server-authoritative apply,
+  - wired successful block applies to replication invalidation via `WorldReplication::mark_chunk_dirty(...)`,
+  - added world helpers `World::block_at(...)` and `World::set_block(...)` for coordinate-safe authoritative mutations,
+  - extended protocol schema/tests to allow optional `block_update.payload.player_id`,
+  - added `server.unit` coverage in `tests/server/BlockInteractionTests.cpp` for valid apply, invalid actions, conflict races, and out-of-bounds rejection.
+- Completed a Phase 3 M3.1 implementation slice (weapon fire and hit resolution):
+  - added `server::CombatSimulation` runtime module with deterministic fire queue ordering, configurable health/range/hit-radius defaults, and per-player combat state,
+  - integrated weapon behavior tables from `config/weapons.json` into server runtime and extended config parsing with optional `range_units` + `projectile_speed_units_per_second`,
+  - added authoritative hitscan ray resolution and delayed projectile impact resolution tied to server ticks,
+  - added damage/death pipeline outputs with immediate reliable `damage_event` packet broadcast and snapshot `events` replication (`damage_event` + `death_event`),
+  - added `weapon_fire` protocol contract (`MessageType::WeaponFire`) and server receive-path validation/gating in `server/src/main.cpp`,
+  - extended player snapshot payloads with combat reconciliation fields (`health`, `alive`, `last_shot_seq`),
+  - added deterministic server tests in `tests/server/CombatSimulationTests.cpp` and shared DPS sanity coverage in `tests/shared/WeaponsTests.cpp`.
+- Completed a Phase 3 M3.1 hardening + integration slice:
+  - added `client::WeaponFireEmitter` in `client_runtime` for monotonic `shot_seq` generation, aim vector normalization, and protocol-compliant `weapon_fire` payload construction,
+  - wired client fire-intent capture in `client/src/main.cpp` (left-click edge trigger) with aim-origin/direction sampling from local player/camera state,
+  - extracted combat event serialization helpers into `server::CombatEvents` (`to_damage_packet`, snapshot event mappers, append helper) to keep broadcast/snapshot formatting shared between runtime and tests,
+  - added `tests/server/CombatIntegrationTests.cpp` covering fire request -> damage/death broadcast packets -> snapshot reconciliation fields,
+  - added `tests/client/WeaponFireEmitterTests.cpp` covering packet validity, direction normalization, sequence monotonicity, and invalid-input rejection.
+- Completed a Phase 3 M3.2 implementation slice (inventory and loot loop):
+  - added `server::InventoryLootSimulation` runtime module with deterministic scheduled treasure spawning, bounded pickup queueing, range/alive/duplicate/capacity/weight validation, and deterministic pickup drain ordering (`player_id`, then `pickup_seq`),
+  - integrated configurable drop-on-death behavior (`loot_drop`) by converting victim inventory contents into deterministic world loot spawns tied to combat `death_event` outputs,
+  - extended protocol with `MessageType::TreasurePickup` (`treasure_pickup`) payload contract and server receive-path validation/gating in `server/src/main.cpp`,
+  - integrated inventory runtime into server join/disconnect/timeout lifecycle, reliable `inventory_update` packets for inventory deltas, and snapshot payload extensions (`players[*].coins/inventory_*`, `treasure_spawns`, loot events),
+  - added runtime-focused `server.unit` coverage in `tests/server/InventoryLootSimulationTests.cpp`,
+  - extended shared protocol parser coverage in `tests/shared/ProtocolTests.cpp` for `treasure_pickup` schema validation.
+- Completed a Phase 3 M3.3 implementation slice (match lifecycle completion):
+  - added `server::MatchLifecycleSimulation` runtime module with authoritative `PreMatch`/`InMatch`/`PostMatch` phases, timer authority, respawn budget enforcement, scoreboard aggregation, and deterministic winner selection,
+  - integrated match lifecycle config parsing in `server/src/main.cpp` (`match.pre_match_seconds`, `match.duration_seconds`, `match.respawn_delay_seconds`, `match.respawns_per_player`, `match.min_players_to_start`) with fallback to legacy `match_time_minutes`/`respawns`,
+  - gated server receive handling for `weapon_fire` and `treasure_pickup` to active match phase (`InMatch`),
+  - integrated per-tick lifecycle resolution with authoritative respawn application through `CombatSimulation::respawn_player(...)`,
+  - added reliable `match_state` broadcast on join/state-change/snapshot cadence and snapshot extensions (`payload.match_state`, `players[*].respawns_remaining`, `players[*].eliminated`),
+  - added runtime-focused `server.unit` coverage in `tests/server/MatchLifecycleSimulationTests.cpp`,
+  - extended shared protocol parser coverage in `tests/shared/ProtocolTests.cpp` for `match_state` schema validation.
+- Completed a Phase 4 M4.1 implementation slice (profiling baseline instrumentation):
+  - added `server::RuntimeTelemetry` runtime module with tick-window `avg/p95/max` timing summaries, per-phase timing splits, outbound packet bytes/counts by message type, and peak runtime pressure counters,
+  - integrated telemetry into `server/src/main.cpp` across authoritative tick phases (`movement`, `combat`, `inventory`, `match_lifecycle`, `broadcast`, `snapshot_build`, `snapshot_send`) and all reliable send paths,
+  - added configurable telemetry controls in server runtime config (`runtime.profiling.enabled`, `runtime.profiling.report_interval_ticks`, `runtime.profiling.history_size_ticks`),
+  - added runtime-focused `server.unit` coverage in `tests/server/RuntimeTelemetryTests.cpp` for report cadence, window reset semantics, and disabled no-op behavior.
+- Completed a Phase 4 M4.1 optimization/unblock slice:
+  - changed reliable `match_state` broadcast behavior to state-change-first (`runtime.match_state_broadcast_on_snapshot=false` by default) with a runtime knob to restore snapshot-cadence broadcasting,
+  - hardened build scripts (`scripts/configure.sh`, `scripts/build.sh`, `scripts/test.sh`) to auto-detect local `vcpkg` roots at `./vcpkg` and `../vcpkg`,
+  - added CMake ENet compatibility fallback for vcpkg (`unofficial::enet::enet`),
+  - fixed strict-warning build breaks on current toolchain in voxel/runtime code paths,
+  - fixed failing unit fixtures (weapon config path resolution, movement expectations, combat cooldown/line-of-fire fixtures, match timer fixture).
+- Completed a Phase 4 M4.1 active-load profiling + payload-trim slice:
+  - added `devy_load_client` (`tools/devy_load_client.cpp`) to drive synthetic ENet sessions with join/heartbeat/input traffic for runtime profiling,
+  - added `scripts/profile-load.sh` to run server + load client together and emit telemetry artifacts (`server.log`, `load-client.log`, `telemetry.log`, `summary.txt`) under `artifacts/telemetry/*`,
+  - optimized cadence snapshot payloads by default via `runtime.snapshot_include_match_scoreboard=false`, removing duplicated scoreboard arrays from snapshot `match_state` payload while keeping full scoreboard in reliable `match_state` packets,
+  - executed before/after profiling runs with 8 active synthetic clients:
+    - baseline (`snapshot_include_match_scoreboard=true`): `artifacts/telemetry/scoreboard-on/summary.txt`,
+    - optimized (`snapshot_include_match_scoreboard=false`): `artifacts/telemetry/scoreboard-off/summary.txt`,
+    - observed reduction in top packet bytes (`state_snapshot`) from `2,794,432` to `2,182,712` across the run window (~21.89%),
+    - observed reduction in top phase average (`snapshot_send`) from `2.031` ms to `1.553` ms (~23.54%).
+- Completed a Phase 4 M4.1 snapshot-build optimization + regression-hardening slice:
+  - extracted lifecycle payload serialization into `server::build_match_state_payload(...)` / `server::build_match_state_packet(...)` (`server/include/server/MatchStatePayload.h`, `server/src/MatchStatePayload.cpp`) so reliable and snapshot lifecycle payload paths share one formatter,
+  - added focused `server.unit` coverage in `tests/server/MatchStatePayloadTests.cpp` for scoreboard toggle behavior:
+    - snapshot payload path can omit `scoreboard` when the snapshot knob is disabled,
+    - reliable `match_state` packets always include `scoreboard`,
+  - reduced `snapshot_build` join overhead in `server/src/main.cpp` by replacing per-snapshot multi-map merges with session-indexed player view assembly (single index table + vector updates),
+  - tightened JSON construction allocations by reserving known array sizes in snapshot helper paths (`spawns_to_json`, chunk-revision serialization, players array),
+  - captured follow-up active-load telemetry runs:
+    - `artifacts/telemetry/snapshot-build-indexed-v2/summary.txt`,
+    - `artifacts/telemetry/snapshot-build-indexed-v3/summary.txt`,
+    - latest report windows show `snapshot_build` in the ~`0.19-0.24` ms avg range under 8-client synthetic load, with `snapshot_send` remaining the dominant average phase.
+- Completed a Phase 4 M4.2 reliability hardening slice (config validation fail-fast):
+  - added `server::validate_server_config(...)` (`server/include/server/ServerConfigValidation.h`, `server/src/ServerConfigValidation.cpp`) for strict boot-time schema/type/range checks,
+  - integrated fail-fast startup rejection in `server/src/main.cpp` so invalid config values now return non-zero before runtime initialization,
+  - added `devy::config::try_load_json(...)` and integrated fail-fast startup rejection in `server/src/main.cpp` so config file load/parse errors now return non-zero before validation/runtime initialization,
+  - tightened `loot_drop` validation to explicit `all|none` values to avoid silent fallback behavior,
+  - added `server.unit` coverage in `tests/server/ServerConfigValidationTests.cpp` for root/type/range validation cases,
+  - added integration boot-failure CTest coverage using fixtures `config/server_invalid_tick_rate.json`, `config/server_invalid_loot_drop.json`, and `config/server_invalid_json.json` via `tests/scripts/assert-invalid-config.sh`.
+- Completed a Phase 4 M4.2 reliability automation slice (watchdog + chaos + restart drills):
+  - extended `devy_load_client` (`tools/devy_load_client.cpp`) with reliability drill traffic controls:
+    - malformed packet flood injection (`--malformed-rate-hz`),
+    - forced disconnect/reconnect churn (`--disconnect-interval-ms`, `--reconnect-delay-ms`),
+    - summary counters (`connect_attempts`, `reconnect_attempts`, `forced_disconnects`, `malformed_sent`),
+  - added `scripts/watchdog-server.sh` for bounded crash/restart loops with per-attempt logs, retry backoff, and log rotation,
+  - added `scripts/chaos-drill.sh` to run malformed packet flood + disconnect churn scenarios and assert expected resilience signals,
+  - added `scripts/restart-recovery.sh` to validate server restart recovery with pre/post restart load phases,
+  - added CTest wrappers:
+    - `tests/scripts/assert-watchdog-restart.sh`,
+    - `tests/scripts/assert-chaos-drill.sh`,
+    - `tests/scripts/assert-restart-recovery.sh`,
+  - registered reliability tests in `tests/CMakeLists.txt`:
+    - `server.reliability.watchdog_restart`,
+    - `server.reliability.chaos_drill`,
+    - `server.reliability.restart_recovery`,
+  - archived latest reliability evidence under:
+    - `artifacts/reliability/ctest-watchdog/summary.txt`,
+    - `artifacts/reliability/ctest-chaos/summary.txt`,
+    - `artifacts/reliability/ctest-restart-recovery/summary.txt`.
+- Completed a Phase 4 M4.2 reliability soak + CI lane slice:
+  - extended `devy_load_client` malformed injection controls with:
+    - `--malformed-family` (`legacy|mixed|invalid_json|unsupported_version|unknown_type|schema|envelope`),
+    - `--malformed-burst-size` (burst envelope count per malformed interval),
+  - extended `scripts/chaos-drill.sh` to accept malformed family/burst arguments and assert error-category coverage breadth (`covered_error_categories`) for mixed chaos scenarios,
+  - added `scripts/reliability-soak.sh` for multi-cycle minute/hour reliability windows with rotating chaos profiles, periodic restart-recovery checks, and trend summaries (`chaos-metrics.csv`, `restart-metrics.csv`, `summary.txt`),
+  - added `tests/scripts/assert-reliability-soak.sh` and new CTest entry `server.reliability.soak_short`,
+  - added `.github/workflows/reliability.yml` with:
+    - non-scheduled reliability drill lane for `server.reliability.*`,
+    - scheduled/manual soak lane with archived reliability artifacts.
+- Completed a Phase 4 M4.3 telemetry and diagnostics slice:
+  - extended `server::RuntimeTelemetry` with operational counters/rates:
+    - tick lag count/rate and max overrun vs authoritative tick budget,
+    - inbound packet received/drop/parse-error counters and rates,
+    - command rejection counts, plus active-player average/last-window metrics,
+  - added thresholded alert contract under `runtime.profiling.alerts` and `tick_lag_tolerance_ms`,
+  - instrumented server receive paths in `server/src/main.cpp` to count parse drops and command rejections across join/heartbeat/input/block/combat/inventory handlers,
+  - added machine-parseable diagnostics stream line per telemetry window (`Runtime diagnostics json=...`),
+  - added `config/server_diagnostics_alert.json` fixture + `scripts/diagnostics-dry-run.sh`,
+  - added CTest integration `server.telemetry.alert_dry_run` via `tests/scripts/assert-diagnostics-dry-run.sh`,
+  - expanded unit validation coverage:
+    - `tests/server/RuntimeTelemetryTests.cpp` now asserts diagnostics rates and threshold alert behavior,
+    - `tests/server/ServerConfigValidationTests.cpp` now asserts diagnostics-alert config validation.
+- Completed a Phase 5 M5.1 CI/CD completion slice:
+  - added `.github/workflows/ci.yml` covering:
+    - matrix builds for `debug-vcpkg` and `release-vcpkg`,
+    - test shards for `shared.unit`, `client.unit`, `server.unit`, and integration smoke/config/telemetry checks,
+    - verification lane for cache correctness + pipeline failure injection,
+    - release packaging lane with deterministic artifact creation and reproducible hash verification,
+  - added CI helper scripts:
+    - `scripts/ci-cache-check.sh`,
+    - `scripts/ci-failure-injection.sh`,
+    - `scripts/package-artifacts.sh`,
+    - `scripts/verify-artifact-repro.sh`,
+  - updated `.github/workflows/reliability.yml` with explicit retention windows (`14` days drills, `30` days soak).
+- Completed a Phase 5 M5.2 packaging and runtime ops slice:
+  - added launch-profile runtime tooling:
+    - `scripts/launch-profile.sh`,
+    - `profiles/launch/local-dev.env`,
+    - `profiles/launch/release-candidate.env`,
+    - `profiles/launch/canary.env`,
+  - added release config templates:
+    - `config/templates/server_release_candidate.json`,
+    - `config/templates/server_canary.json`,
+  - added release operations automation:
+    - release notes generation via `scripts/generate-release-notes.sh`,
+    - fresh-install package rehearsal via `scripts/install-package-smoke.sh`,
+    - protocol upgrade/downgrade compatibility rehearsal via `scripts/protocol-compat-check.sh`,
+    - deploy/rollback rehearsal via `scripts/rollback-rehearsal.sh`,
+  - added rollback runbook: `docs/rollback-strategy.md`,
+  - added release-operation CTest wrappers and entries:
+    - `tests/scripts/assert-install-package-smoke.sh`,
+    - `tests/scripts/assert-protocol-compat.sh`,
+    - `tests/scripts/assert-rollback-rehearsal.sh`,
+    - `server.release.install_smoke`,
+    - `server.release.protocol_upgrade_downgrade`,
+    - `server.release.rollback_rehearsal`,
+  - updated `.github/workflows/ci.yml` integration shard regex to include `server.release.*`,
+  - updated `scripts/package-artifacts.sh` to bundle release templates/profiles and rollback docs.
+- Completed a Phase 5 M5.3 alpha release gate slice:
+  - added alpha gate documentation artifacts:
+    - `docs/releases/alpha-bug-bash-checklist.md`,
+    - `docs/releases/alpha-known-issues.md`,
+    - `docs/releases/alpha-acceptance-checklist.md`,
+    - `docs/releases/alpha-release-tag-flow.md`,
+  - added alpha gate automation scripts:
+    - `scripts/alpha-acceptance-pack.sh`,
+    - `scripts/alpha-endurance-run.sh`,
+    - `scripts/alpha-release-gate.sh`,
+  - added alpha release CTest wrappers/entries:
+    - `tests/scripts/assert-alpha-acceptance-pack.sh`,
+    - `tests/scripts/assert-alpha-endurance-short.sh`,
+    - `server.release.alpha_acceptance_pack`,
+    - `server.release.alpha_endurance_short`,
+  - updated `.github/workflows/ci.yml` integration shard regex to include alpha release checks.
+- Executed an additional alpha release-gate candidate dry run (`run_endurance=0`) to validate M5.3 orchestration end-to-end with fresh artifacts:
+  - `scripts/alpha-release-gate.sh v0.2.0-alpha-rc1-dryrun config/server_test.json debug-vcpkg 6 4 480 artifacts/releases/alpha-gate/rc1-dryrun 0`,
+  - gate summary at `artifacts/releases/alpha-gate/rc1-dryrun/summary.txt` (`status=pass`),
+  - acceptance summary at `artifacts/releases/alpha-gate/rc1-dryrun/acceptance/summary.txt` (`status=pass`),
+  - generated release notes candidate at `docs/releases/v0.2.0-alpha-rc1-dryrun-notes.md`.
+- Completed a Phase 5 M5.3 release-notes correctness hardening slice:
+  - fixed `scripts/generate-release-notes.sh` commit scanning so the final commit line is not dropped when git log output has no trailing newline,
+  - added release-note generation regression harness `tests/scripts/assert-release-notes.sh`,
+  - registered CTest gate `server.release.release_notes_generation`,
+  - updated `.github/workflows/ci.yml` integration shard regex to include `server.release.release_notes_generation`,
+  - regenerated `docs/releases/v0.2.0-alpha-rc1-dryrun-notes.md` (now reports `Total commits: 1` in this workspace).
+- Executed an additional bounded full-path alpha release gate with endurance enabled (`run_endurance=1`):
+  - `scripts/alpha-release-gate.sh v0.2.0-alpha-followup config/server_test.json debug-vcpkg 6 4 1 artifacts/releases/alpha-gate/followup-local 1`,
+  - gate summary at `artifacts/releases/alpha-gate/followup-local/summary.txt` (`status=pass`),
+  - acceptance summary at `artifacts/releases/alpha-gate/followup-local/acceptance/summary.txt` (`status=pass`),
+  - endurance summary at `artifacts/releases/alpha-gate/followup-local/endurance/summary.txt` (`status=pass`),
+  - generated release notes candidate at `docs/releases/v0.2.0-alpha-followup-notes.md`.
+- Started full-duration alpha endurance evidence run (8h target):
+  - preflight revalidated local debug preset with `scripts/configure.sh debug` and `scripts/build.sh debug`,
+  - launched detached long-run execution:
+    - `scripts/alpha-endurance-run.sh config/server_test.json 480 8 artifacts/releases/alpha-endurance/candidate-8h-20260215-184958 20 6 6`,
+  - active run artifacts currently writing under:
+    - `artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+  - process tracking:
+    - `artifacts/releases/alpha-endurance/candidate-8h-20260215-184958/pid.txt`.
+- Added an endurance monitoring helper for the in-progress alpha run:
+  - `scripts/alpha-endurance-status.sh [out-dir]` reports process liveness, completed chaos/restart cycles, summary file readiness, and recent timeline lines.
+- Validation status in this environment:
+  - `scripts/configure.sh debug` passes (auto-selects `debug-vcpkg` when local `vcpkg` is detected).
+  - `scripts/build.sh debug` passes.
+  - `scripts/test.sh debug` passes (`shared.unit`, `server.unit`, `client.unit`, `server.smoke`, `server.telemetry.alert_dry_run`, config tests, reliability tests all green).
+  - `scripts/smoke-server.sh config/server_test.json 3` passes and emits telemetry baseline reports:
+    - tick window `avg/p95/max` around `0.062-0.074 / 0.130-0.162 / 0.139-0.319` ms,
+    - `snapshot_build` is currently the top phase in no-client smoke windows,
+    - outbound net traffic remains `0 packets / 0 bytes` in no-client smoke.
+  - `scripts/profile-load.sh config/server_test.json 8 8 artifacts/telemetry/scoreboard-off` passes and captures active-session telemetry with `state_snapshot` as the top packet byte contributor and `snapshot_send` as the top average phase under 8-client synthetic load.
+  - `scripts/profile-load.sh config/server_test.json 8 8 artifacts/telemetry/snapshot-build-indexed-v2` passes after snapshot-build optimization refactor.
+  - `scripts/profile-load.sh config/server_test.json 8 8 artifacts/telemetry/snapshot-build-indexed-v3` passes as a follow-up validation sample.
+  - invalid-config startup checks now pass:
+    - `server.config.invalid_tick_rate`,
+    - `server.config.invalid_loot_drop`,
+    - `server.config.invalid_json`.
+  - reliability drills now pass:
+    - `server.reliability.watchdog_restart` (forced first-attempt kill + successful restart),
+    - `server.reliability.chaos_drill` (malformed packet flood + disconnect churn),
+    - `server.reliability.restart_recovery` (load before and after forced server restart).
+    - `server.reliability.soak_short` (1-minute soak with rotating chaos + periodic restart checks).
+  - targeted reliability CTest lane passes:
+    - `ctest --preset debug-vcpkg -R '^server\.reliability\.' --output-on-failure` (`4/4`).
+  - targeted telemetry/validation CTest lanes pass:
+    - `ctest --preset debug-vcpkg -R '^server\.telemetry\.alert_dry_run$' --output-on-failure` (`1/1`).
+    - `ctest --preset debug-vcpkg -R 'RuntimeTelemetry|ServerConfigValidation' --output-on-failure`.
+  - new CI helper checks pass locally:
+    - `scripts/ci-cache-check.sh debug-vcpkg`.
+    - `scripts/ci-failure-injection.sh build/presets/debug-vcpkg/server/devy_server config/server_invalid_tick_rate.json "Configuration validation failed"`.
+    - `scripts/package-artifacts.sh debug-vcpkg artifacts/releases/local-ci`.
+    - `scripts/verify-artifact-repro.sh debug-vcpkg artifacts/releases/local-repro`.
+  - new CI shard regex lane passes locally:
+    - `ctest --preset debug-vcpkg -R '^(shared\.unit|client\.unit|server\.unit|server\.(smoke|config\.invalid_tick_rate|config\.invalid_loot_drop|config\.invalid_json|telemetry\.alert_dry_run))$' --output-on-failure` (`8/8`).
+  - release-operation CTest lane passes:
+    - `ctest --preset debug-vcpkg -R '^server\.release\.' --output-on-failure` (`6/6`).
+  - release-notes regression check passes:
+    - `ctest --preset debug-vcpkg -R '^server\.release\.release_notes_generation$' --output-on-failure` (`1/1`).
+  - updated integration shard regex lane (including release checks) passes:
+    - `ctest --preset debug-vcpkg -R '^(server\.(smoke|config\.invalid_tick_rate|config\.invalid_loot_drop|config\.invalid_json|telemetry\.alert_dry_run|release\.install_smoke|release\.protocol_upgrade_downgrade|release\.rollback_rehearsal|release\.alpha_acceptance_pack|release\.alpha_endurance_short|release\.release_notes_generation))$' --output-on-failure` (`11/11`).
+  - new alpha release checks pass:
+    - `ctest --preset debug-vcpkg -R '^server\.release\.alpha_(acceptance_pack|endurance_short)$' --output-on-failure` (`2/2`).
+    - `scripts/alpha-release-gate.sh v0.2.0-alpha-dryrun config/server_test.json debug-vcpkg 6 4 1 artifacts/releases/alpha-gate/local-dryrun 0` passes and emits `artifacts/releases/alpha-gate/local-dryrun/summary.txt`.
+    - `scripts/alpha-release-gate.sh v0.2.0-alpha-rc1-dryrun config/server_test.json debug-vcpkg 6 4 480 artifacts/releases/alpha-gate/rc1-dryrun 0` passes and emits `artifacts/releases/alpha-gate/rc1-dryrun/summary.txt`.
+    - `scripts/alpha-release-gate.sh v0.2.0-alpha-followup config/server_test.json debug-vcpkg 6 4 1 artifacts/releases/alpha-gate/followup-local 1` passes with both acceptance and endurance enabled, and emits `artifacts/releases/alpha-gate/followup-local/summary.txt`.
+- Checked in-progress 8-hour endurance run health with `scripts/alpha-endurance-status.sh`:
+  - timestamp: `2026-02-15T17:56:56Z`,
+  - state: `process_state=running`,
+  - progress counters: `chaos_cycles_completed=16`, `restart_runs_completed=2`,
+  - summaries still pending while run is active (`run_summary=missing`, `soak_summary=missing`).
+- Added `/artifacts/` to `.gitignore` so local endurance/release evidence output does not pollute baseline release-prep commits.
+
+## Blockers / Bugs
+- No active build/test blockers in this environment for debug-vcpkg flow.
+- Repository history is now moving toward release-ready baselining (current docs/code state prepared for baseline commit), but no tags exist yet (`git describe --tags --abbrev=0` returns no tags), so final alpha notes/tag cut still needs at least one explicit baseline tag/ref.
+- GitHub-hosted workflow execution still pending from this local environment:
+  - `.github/workflows/ci.yml` has not yet been run in Actions for branch protection verification.
+  - updated `.github/workflows/reliability.yml` retention settings have not yet been validated on a scheduled run.
+- Full 8-hour endurance evidence run for alpha gate is in progress:
+  - running artifacts: `artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+  - latest completed evidence remains intentionally short (`1` minute) and validates only full-path gate wiring.
+
+## Next Immediate Starting Point
+- Finish alpha candidate sign-off once the in-progress endurance run completes:
+  - monitor run progress and final status:
+    - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+  - after endurance completion, create/mark baseline release ref (tag or explicit commit ref) for release-note range anchoring,
+  - run `scripts/alpha-release-gate.sh v0.x.y-alpha config/server_test.json debug-vcpkg 8 8 480 artifacts/releases/alpha-gate/candidate 1 <previous-tag-or-ref>`,
+  - commit release notes/docs and create `chore(release): v0.x.y-alpha` tag.

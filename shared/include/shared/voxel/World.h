@@ -2,6 +2,7 @@
 
 #include "shared/voxel/Chunk.h"
 
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -33,6 +34,9 @@ public:
   void generate(int chunks_x, int chunks_z, int max_height);
   int height_at(int world_x, int world_z) const;
   Chunk* get_chunk(int chunk_x, int chunk_y, int chunk_z);
+  const Chunk* get_chunk(int chunk_x, int chunk_y, int chunk_z) const;
+  std::optional<BlockId> block_at(int world_x, int world_y, int world_z) const;
+  bool set_block(int world_x, int world_y, int world_z, BlockId id);
   const std::unordered_map<ChunkCoord, Chunk, ChunkCoordHash>& chunks() const;
 
 private:

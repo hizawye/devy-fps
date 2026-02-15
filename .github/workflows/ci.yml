@@ -1,0 +1,143 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        preset:
+          - debug-vcpkg
+          - release-vcpkg
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: "vcpkg.json"
+
+      - name: Configure (${{ matrix.preset }})
+        run: scripts/configure.sh ${{ matrix.preset }}
+
+      - name: Build (${{ matrix.preset }})
+        run: scripts/build.sh ${{ matrix.preset }}
+
+  test-shards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - name: shared
+            regex: '^shared\.unit$'
+          - name: client
+            regex: '^client\.unit$'
+          - name: server
+            regex: '^server\.unit$'
+          - name: integration
+            regex: '^server\.(smoke|config\.invalid_tick_rate|config\.invalid_loot_drop|config\.invalid_json|telemetry\.alert_dry_run|release\.install_smoke|release\.protocol_upgrade_downgrade|release\.rollback_rehearsal|release\.alpha_acceptance_pack|release\.alpha_endurance_short|release\.release_notes_generation)$'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: "vcpkg.json"
+
+      - name: Configure (debug-vcpkg)
+        run: scripts/configure.sh debug-vcpkg
+
+      - name: Build (debug-vcpkg)
+        run: scripts/build.sh debug-vcpkg
+
+      - name: Run shard ${{ matrix.shard.name }}
+        run: >
+          ctest --preset debug-vcpkg
+          -R "${{ matrix.shard.regex }}"
+          --output-on-failure
+
+      - name: Upload shard logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-${{ matrix.shard.name }}-logs
+          path: build/**/Testing/Temporary/LastTest.log
+          retention-days: 14
+          if-no-files-found: ignore
+
+  verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: "vcpkg.json"
+
+      - name: Configure + build (debug-vcpkg)
+        run: |
+          scripts/configure.sh debug-vcpkg
+          scripts/build.sh debug-vcpkg
+
+      - name: Cache correctness check
+        run: scripts/ci-cache-check.sh debug-vcpkg
+
+      - name: Pipeline failure injection check
+        run: >
+          scripts/ci-failure-injection.sh
+          build/presets/debug-vcpkg/server/devy_server
+          config/server_invalid_tick_rate.json
+          "Configuration validation failed"
+
+  package-release:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJsonGlob: "vcpkg.json"
+
+      - name: Build package inputs (release-vcpkg)
+        run: |
+          scripts/configure.sh release-vcpkg
+          scripts/build.sh release-vcpkg
+
+      - name: Create deterministic package
+        run: DEVY_SKIP_BUILD=1 scripts/package-artifacts.sh release-vcpkg artifacts/releases
+
+      - name: Verify reproducible artifact hash
+        run: scripts/verify-artifact-repro.sh release-vcpkg artifacts/releases/repro-check 1
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages
+          path: |
+            artifacts/releases/*.tar.gz
+            artifacts/releases/*.tar.gz.sha256
+          retention-days: 30
+          if-no-files-found: error

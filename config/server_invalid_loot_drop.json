@@ -1,0 +1,5 @@
+{
+  "port": 7777,
+  "max_players": 16,
+  "loot_drop": "randomized"
+}
