@@ -322,3 +322,10 @@
   - launcher pid: `3496294`,
   - first status snapshot (`2026-02-15T18:55:27Z`) shows expected waiting state until follow-up
     summary file is written.
+- Re-polled live TODO gate status (`2026-02-15T18:57:23Z`) and kept the same release-finalization
+  decision:
+  - endurance remains the only active blocker (`process_state=running`,
+    `chaos_cycles_completed=153`, `restart_runs_completed=25`),
+  - both queued workers (`3419283`, `3496294`) are healthy and waiting for expected upstream
+    summaries,
+  - no new code-path changes required before endurance completion.

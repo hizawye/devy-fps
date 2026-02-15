@@ -284,3 +284,6 @@
   `chore(release)` commit/tag.
 - Updated `README.md`, `AGENTS.md`, `docs/decision-log.md`, and `docs/project-status.md` with
   finalizer usage and detached worker monitoring paths.
+- Refreshed release-monitoring docs with a live liveness checkpoint (`2026-02-15T18:57:23Z`)
+  confirming endurance (`chaos_cycles_completed=153`, `restart_runs_completed=25`) and queued
+  follow-up/finalizer workers are still running and waiting as designed.
