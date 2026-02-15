@@ -75,8 +75,51 @@ int sample_height(int world_x, int world_z, int max_height) {
 
 World::World() = default;
 
+void World::clear() { chunks_.clear(); }
+
+Chunk& World::ensure_generated_chunk(int chunk_x, int chunk_y, int chunk_z, int max_height) {
+  if (max_height > 0) {
+    max_height_ = std::max(max_height_, max_height);
+  }
+
+  const ChunkCoord key{chunk_x, chunk_y, chunk_z};
+  auto existing = chunks_.find(key);
+  if (existing != chunks_.end()) {
+    return existing->second;
+  }
+
+  Chunk chunk{};
+  for (int z = 0; z < kChunkSize; ++z) {
+    for (int x = 0; x < kChunkSize; ++x) {
+      const int world_x = chunk_x * kChunkSize + x;
+      const int world_z = chunk_z * kChunkSize + z;
+      const int height = sample_height(world_x, world_z, max_height_);
+
+      for (int y = 0; y < kChunkSize; ++y) {
+        const int world_y = chunk_y * kChunkSize + y;
+        BlockId id = 0;
+        if (world_y < height - 3) {
+          id = 2; // stone
+        } else if (world_y < height - 1) {
+          id = 1; // dirt
+        } else if (world_y < height) {
+          id = 3; // grass
+        }
+        chunk.set(x, y, z, id);
+      }
+    }
+  }
+
+  return chunks_.emplace(key, std::move(chunk)).first->second;
+}
+
+bool World::remove_chunk(int chunk_x, int chunk_y, int chunk_z) {
+  const ChunkCoord key{chunk_x, chunk_y, chunk_z};
+  return chunks_.erase(key) > 0U;
+}
+
 void World::generate(int chunks_x, int chunks_z, int max_height) {
-  chunks_.clear();
+  clear();
   max_height_ = max_height;
 
   int chunks_y = (max_height + kChunkSize - 1) / kChunkSize;
@@ -84,29 +127,7 @@ void World::generate(int chunks_x, int chunks_z, int max_height) {
   for (int cy = 0; cy < chunks_y; ++cy) {
     for (int cz = 0; cz < chunks_z; ++cz) {
       for (int cx = 0; cx < chunks_x; ++cx) {
-        Chunk chunk;
-        for (int z = 0; z < kChunkSize; ++z) {
-          for (int x = 0; x < kChunkSize; ++x) {
-            int world_x = cx * kChunkSize + x;
-            int world_z = cz * kChunkSize + z;
-
-            int height = sample_height(world_x, world_z, max_height);
-
-            for (int y = 0; y < kChunkSize; ++y) {
-              int world_y = cy * kChunkSize + y;
-              BlockId id = 0;
-              if (world_y < height - 3) {
-                id = 2; // stone
-              } else if (world_y < height - 1) {
-                id = 1; // dirt
-              } else if (world_y < height) {
-                id = 3; // grass
-              }
-              chunk.set(x, y, z, id);
-            }
-          }
-        }
-        chunks_.insert({ChunkCoord{cx, cy, cz}, chunk});
+        static_cast<void>(ensure_generated_chunk(cx, cy, cz, max_height));
       }
     }
   }

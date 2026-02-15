@@ -26,10 +26,12 @@
 #include <csignal>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
@@ -50,6 +52,81 @@ std::string resolve_path(const std::string& path) {
     return alt.string();
   }
   return path;
+}
+
+constexpr std::string_view kRuntimeDiagnosticsPrefix = "Runtime diagnostics json=";
+
+bool write_atomic_text_file(const std::string& output_path, const std::string& body,
+                            std::string* error) {
+  if (output_path.empty()) {
+    if (error != nullptr) {
+      *error = "health output path is empty";
+    }
+    return false;
+  }
+
+  const std::filesystem::path path(output_path);
+  const auto parent = path.parent_path();
+  if (!parent.empty()) {
+    std::error_code mkdir_error{};
+    std::filesystem::create_directories(parent, mkdir_error);
+    if (mkdir_error) {
+      if (error != nullptr) {
+        *error = "failed to create health output directory `" + parent.string() +
+                 "`: " + mkdir_error.message();
+      }
+      return false;
+    }
+  }
+
+  const std::filesystem::path tmp_path = path.string() + ".tmp";
+  std::ofstream out(tmp_path, std::ios::binary | std::ios::trunc);
+  if (!out.is_open()) {
+    if (error != nullptr) {
+      *error = "failed to open temporary health output file `" + tmp_path.string() + "`";
+    }
+    return false;
+  }
+  out << body;
+  out << '\n';
+  out.flush();
+  if (!out.good()) {
+    if (error != nullptr) {
+      *error = "failed to write temporary health output file `" + tmp_path.string() + "`";
+    }
+    out.close();
+    std::error_code remove_error{};
+    std::filesystem::remove(tmp_path, remove_error);
+    return false;
+  }
+  out.close();
+
+  std::error_code rename_error{};
+  std::filesystem::rename(tmp_path, path, rename_error);
+  if (rename_error) {
+    std::error_code remove_error{};
+    std::filesystem::remove(path, remove_error);
+    rename_error.clear();
+    std::filesystem::rename(tmp_path, path, rename_error);
+    if (rename_error) {
+      if (error != nullptr) {
+        *error = "failed to atomically publish health output file `" + path.string() +
+                 "`: " + rename_error.message();
+      }
+      std::error_code cleanup_error{};
+      std::filesystem::remove(tmp_path, cleanup_error);
+      return false;
+    }
+  }
+
+  return true;
+}
+
+std::optional<std::string> diagnostics_json_payload(const std::string& diagnostics_line) {
+  if (diagnostics_line.rfind(kRuntimeDiagnosticsPrefix, 0U) != 0U) {
+    return std::nullopt;
+  }
+  return diagnostics_line.substr(kRuntimeDiagnosticsPrefix.size());
 }
 
 std::uintptr_t peer_token(const ENetPeer* peer) { return reinterpret_cast<std::uintptr_t>(peer); }
@@ -217,9 +294,10 @@ int main(int argc, char** argv) {
   std::signal(SIGTERM, handle_signal);
 
   std::string config_path = "config/server.json";
+  std::string health_file_path{};
   int smoke_seconds = 0;
   for (int i = 1; i < argc; ++i) {
-    std::string arg = argv[i];
+    const std::string arg = argv[i];
     if (arg == "--smoke-seconds") {
       if (i + 1 >= argc) {
         devy::log::write(devy::log::Level::Error, "Missing value for --smoke-seconds.");
@@ -234,6 +312,14 @@ int main(int argc, char** argv) {
         devy::log::write(devy::log::Level::Error, "Out-of-range integer for --smoke-seconds.");
         return 1;
       }
+      continue;
+    }
+    if (arg == "--health-file") {
+      if (i + 1 >= argc) {
+        devy::log::write(devy::log::Level::Error, "Missing value for --health-file.");
+        return 1;
+      }
+      health_file_path = argv[++i];
       continue;
     }
     config_path = arg;
@@ -688,6 +774,10 @@ int main(int argc, char** argv) {
     devy::log::write(devy::log::Level::Info,
                      "Smoke mode active for " + std::to_string(smoke_seconds) + " seconds.");
   }
+  if (!health_file_path.empty()) {
+    devy::log::write(devy::log::Level::Info,
+                     "Health diagnostics file: " + health_file_path + ".");
+  }
 
   devy::server::SessionManager session_manager(
       {static_cast<std::size_t>(max_players), std::chrono::milliseconds(heartbeat_timeout_ms)});
@@ -735,6 +825,28 @@ int main(int argc, char** argv) {
   auto* telemetry = runtime_profiling_enabled ? &runtime_telemetry : nullptr;
   std::unordered_map<std::uintptr_t, ENetPeer*> peers_by_token{};
   nlohmann::json pending_snapshot_events = nlohmann::json::array();
+  const auto emit_runtime_report = [&](const devy::server::RuntimeTelemetryReport& report) {
+    devy::log::write(devy::log::Level::Info, format_runtime_telemetry_report(report));
+    const std::string diagnostics_line = format_runtime_diagnostics_json(report);
+    devy::log::write(devy::log::Level::Info, diagnostics_line);
+
+    if (health_file_path.empty()) {
+      return;
+    }
+
+    const auto diagnostics_payload = diagnostics_json_payload(diagnostics_line);
+    if (!diagnostics_payload.has_value()) {
+      devy::log::write(devy::log::Level::Warn,
+                       "Health diagnostics publish skipped: malformed diagnostics line.");
+      return;
+    }
+
+    std::string write_error{};
+    if (!write_atomic_text_file(health_file_path, diagnostics_payload.value(), &write_error)) {
+      devy::log::write(devy::log::Level::Warn,
+                       "Health diagnostics publish failed: " + write_error + ".");
+    }
+  };
 
   const auto smoke_deadline =
       std::chrono::steady_clock::now() + std::chrono::seconds(smoke_seconds);
@@ -1248,10 +1360,7 @@ int main(int argc, char** argv) {
         if (telemetry != nullptr) {
           const auto report = telemetry->end_tick(std::chrono::steady_clock::now());
           if (report.has_value()) {
-            devy::log::write(devy::log::Level::Info,
-                             format_runtime_telemetry_report(report.value()));
-            devy::log::write(devy::log::Level::Info,
-                             format_runtime_diagnostics_json(report.value()));
+            emit_runtime_report(report.value());
           }
         }
         continue;
@@ -1425,8 +1534,7 @@ int main(int argc, char** argv) {
       if (telemetry != nullptr) {
         const auto report = telemetry->end_tick(std::chrono::steady_clock::now());
         if (report.has_value()) {
-          devy::log::write(devy::log::Level::Info, format_runtime_telemetry_report(report.value()));
-          devy::log::write(devy::log::Level::Info, format_runtime_diagnostics_json(report.value()));
+          emit_runtime_report(report.value());
         }
       }
     }

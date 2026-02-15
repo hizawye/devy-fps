@@ -37,6 +37,7 @@ target_link_libraries(server_unit_tests PRIVATE
 add_test(NAME server.unit COMMAND server_unit_tests)
 
 add_executable(client_unit_tests
+  client/ChunkSyncApplierTests.cpp
   client/PredictionReconcilerTests.cpp
   client/WeaponFireEmitterTests.cpp
 )
@@ -62,6 +63,13 @@ add_test(
           ${CMAKE_SOURCE_DIR}
 )
 set_tests_properties(server.telemetry.alert_dry_run PROPERTIES TIMEOUT 20)
+
+add_test(
+  NAME server.telemetry.health_file_dry_run
+  COMMAND ${CMAKE_SOURCE_DIR}/tests/scripts/assert-health-file-dry-run.sh
+          ${CMAKE_SOURCE_DIR}
+)
+set_tests_properties(server.telemetry.health_file_dry_run PROPERTIES TIMEOUT 20)
 
 add_test(
   NAME server.config.invalid_tick_rate

@@ -31,7 +31,10 @@ class World {
 public:
   World();
 
+  void clear();
   void generate(int chunks_x, int chunks_z, int max_height);
+  Chunk& ensure_generated_chunk(int chunk_x, int chunk_y, int chunk_z, int max_height);
+  bool remove_chunk(int chunk_x, int chunk_y, int chunk_z);
   int height_at(int world_x, int world_z) const;
   Chunk* get_chunk(int chunk_x, int chunk_y, int chunk_z);
   const Chunk* get_chunk(int chunk_x, int chunk_y, int chunk_z) const;

@@ -25,6 +25,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install vcpkg system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config
+
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
@@ -50,10 +55,15 @@ jobs:
           - name: server
             regex: '^server\.unit$'
           - name: integration
-            regex: '^server\.(smoke|config\.invalid_tick_rate|config\.invalid_loot_drop|config\.invalid_json|telemetry\.alert_dry_run|release\.install_smoke|release\.protocol_upgrade_downgrade|release\.rollback_rehearsal|release\.alpha_acceptance_pack|release\.alpha_endurance_short|release\.release_notes_generation)$'
+            regex: '^server\.(smoke|config\.invalid_tick_rate|config\.invalid_loot_drop|config\.invalid_json|telemetry\.alert_dry_run|telemetry\.health_file_dry_run|release\.install_smoke|release\.protocol_upgrade_downgrade|release\.rollback_rehearsal|release\.alpha_acceptance_pack|release\.alpha_endurance_short|release\.release_notes_generation)$'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install vcpkg system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
@@ -88,6 +98,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install vcpkg system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config
+
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
         with:
@@ -115,6 +130,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install vcpkg system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf autoconf-archive automake libtool pkg-config
 
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@v11
