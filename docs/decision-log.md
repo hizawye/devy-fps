@@ -490,3 +490,10 @@
   - both queued workers (`3419283`, `3496294`) remain healthy and waiting for expected
     upstream summaries,
   - no new code-path changes required before endurance completion.
+- Re-polled live TODO gate status (`2026-02-15T19:26:16Z`) and kept the same release-finalization
+  decision:
+  - endurance remains the only active blocker (`process_state=running`,
+    `chaos_cycles_completed=219`, `restart_runs_completed=36`),
+  - both queued workers (`3419283`, `3496294`) remain healthy and waiting for expected
+    upstream summaries,
+  - no new code-path changes required before endurance completion.
