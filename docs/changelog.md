@@ -287,3 +287,6 @@
 - Refreshed release-monitoring docs with a live liveness checkpoint (`2026-02-15T18:57:23Z`)
   confirming endurance (`chaos_cycles_completed=153`, `restart_runs_completed=25`) and queued
   follow-up/finalizer workers are still running and waiting as designed.
+- Refreshed release-monitoring docs with another live liveness checkpoint (`2026-02-15T18:58:54Z`)
+  confirming endurance (`chaos_cycles_completed=156`, `restart_runs_completed=26`) and queued
+  follow-up/finalizer workers are still running and waiting as designed.
