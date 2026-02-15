@@ -880,3 +880,15 @@
     - endurance worker `3365108` active (`etime=01:54:12`),
     - follow-up worker `3419283` active (`etime=01:05:33`),
     - finalizer worker `3496294` active (`etime=48:44`).
+- Refreshed TODO monitor checkpoint with live worker liveness:
+  - monitor snapshot (`2026-02-15T19:45:31Z`):
+    - `scripts/alpha-endurance-status.sh artifacts/releases/alpha-endurance/candidate-8h-20260215-184958`,
+    - endurance state: `process_state=running`, `chaos_cycles_completed=263`, `restart_runs_completed=43`,
+    - follow-up worker remains active and waiting (`pid=3419283`, summary still missing by design),
+    - finalizer worker remains active and waiting (`pid=3496294`, latest status: `[2026-02-15T19:45:27Z] waiting: summary not found`).
+  - direct process liveness checks:
+    - endurance worker `3365108` active (`etime=01:55:32`),
+    - follow-up worker `3419283` active (`etime=01:06:53`),
+    - finalizer worker `3496294` active (`etime=50:04`).
+  - blocker state: follow-up/finalizer `summary.txt` outputs are both still missing as expected until endurance completes.
+  - next immediate starting point: rerun this TODO monitor checkpoint cycle and commit docs as soon as a new status interval is available.
