@@ -80,10 +80,10 @@
     "death_drop_spread_units": 0.75
   },
   "match": {
-    "pre_match_seconds": 5,
+    "pre_match_seconds": 3,
     "duration_seconds": 7200,
     "respawns_per_player": 2,
-    "respawn_delay_seconds": 3,
+    "respawn_delay_seconds": 2,
     "min_players_to_start": 2
   },
   "team_size": 1,

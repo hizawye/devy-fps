@@ -1,3 +1,5 @@
+#include "client/AuthoritativeEventFeed.h"
+#include "client/AuthoritativeHudModel.h"
 #include "client/ChunkSyncApplier.h"
 #include "client/PredictionReconciler.h"
 #include "client/WeaponFireEmitter.h"
@@ -216,6 +218,7 @@ int main(int argc, char** argv) {
   if (!app.init(app_config)) {
     return 1;
   }
+  const std::string base_window_title = app_config.title;
 
   std::string config_path = "config/server.json";
   if (argc > 1) {
@@ -449,6 +452,8 @@ int main(int argc, char** argv) {
 
   devy::client::PredictionReconciler reconciler({movement_tuning, 256U});
   devy::client::WeaponFireEmitter weapon_fire_emitter{};
+  devy::client::AuthoritativeHudModel authoritative_hud{};
+  devy::client::AuthoritativeEventFeed event_feed{};
   std::unordered_map<devy::voxel::ChunkCoord, uint32_t, devy::voxel::ChunkCoordHash>
       chunk_revisions{};
   std::vector<TreasureSpawnView> known_spawns{};
@@ -464,6 +469,10 @@ int main(int argc, char** argv) {
   int last_match_seconds = -1;
   float smoothed_eye_y = 2.0F;
   float smoothed_fov = base_fov_degrees;
+  std::string last_window_title = base_window_title;
+  std::string event_banner{};
+  uint64_t event_banner_expires_at_ms = 0U;
+  constexpr uint64_t event_banner_duration_ms = 2500U;
 
   constexpr float fixed_dt_seconds = 1.0F / 60.0F;
   constexpr float pickup_max_distance_units = 3.0F;
@@ -473,6 +482,15 @@ int main(int argc, char** argv) {
 
   devy::log::write(Level::Info, "Client started. Connecting to " + host + ":" +
                                     std::to_string(port) + ".");
+
+  const auto push_event_banner = [&](const std::string& message) {
+    if (message.empty()) {
+      return;
+    }
+    event_banner = message;
+    event_banner_expires_at_ms = SDL_GetTicks64() + event_banner_duration_ms;
+    devy::log::write(Level::Info, "Event feedback: " + message + ".");
+  };
 
   app.run([&](float dt) {
     devy::engine::Input::update();
@@ -532,6 +550,10 @@ int main(int argc, char** argv) {
           next_heartbeat_at_ms = SDL_GetTicks64();
           reconciler.reset();
           weapon_fire_emitter.reset();
+          authoritative_hud.reset();
+          event_feed.reset();
+          event_banner.clear();
+          event_banner_expires_at_ms = 0U;
           known_spawns.clear();
           chunk_revisions.clear();
           if (parsed.packet.payload.contains("world_gen")) {
@@ -578,64 +600,36 @@ int main(int argc, char** argv) {
               rebuild_chunk_meshes(&renderer, world);
             }
           }
+          authoritative_hud.apply_snapshot(parsed.packet.payload, local_player_id);
 
           known_spawns = parse_treasure_spawns(parsed.packet.payload);
 
-          if (parsed.packet.payload.contains("events") && parsed.packet.payload["events"].is_array()) {
-            for (const auto& event_payload : parsed.packet.payload["events"]) {
-              if (!event_payload.is_object() || !event_payload.contains("type") ||
-                  !event_payload["type"].is_string()) {
-                continue;
-              }
-              const std::string event_type = event_payload["type"].get<std::string>();
-              if ((event_type == "damage_event" || event_type == "death_event") &&
-                  event_payload.value("victim_id", 0U) == local_player_id) {
-                devy::log::write(Level::Info, "Snapshot event: " + event_type + ".");
-              }
-            }
-          }
-
-          if (parsed.packet.payload.contains("match_state") &&
-              parsed.packet.payload["match_state"].is_object()) {
-            const auto& match_state = parsed.packet.payload["match_state"];
-            const std::string state = match_state.value("state", std::string("unknown"));
-            const int remaining_seconds = static_cast<int>(std::floor(
-                match_state.value("remaining_seconds", 0.0)));
-            if (state != last_match_state || remaining_seconds != last_match_seconds) {
-              last_match_state = state;
-              last_match_seconds = remaining_seconds;
-              devy::log::write(Level::Info,
-                               "Match state: " + state + " (" +
-                                   std::to_string(remaining_seconds) + "s).");
-            }
+          const auto snapshot_messages =
+              event_feed.consume_snapshot_events(parsed.packet.payload, local_player_id);
+          for (const auto& message : snapshot_messages) {
+            push_event_banner(message);
           }
         } else if (parsed.packet.type == devy::net::MessageType::InventoryUpdate) {
           const auto player_id = json_to_u32(parsed.packet.payload.value("player_id", nlohmann::json{}));
           if (player_id.has_value() && player_id.value() == local_player_id) {
             const int coins = parsed.packet.payload.value("coins", 0);
             const int item_count = parsed.packet.payload.value("item_count", 0);
+            authoritative_hud.apply_inventory_update(parsed.packet.payload, local_player_id);
             devy::log::write(Level::Info, "Inventory update: coins=" + std::to_string(coins) +
                                               " items=" + std::to_string(item_count) + ".");
           }
         } else if (parsed.packet.type == devy::net::MessageType::DamageEvent) {
-          const auto victim_id = json_to_u32(parsed.packet.payload.value("victim_id", nlohmann::json{}));
-          if (victim_id.has_value() && victim_id.value() == local_player_id) {
-            const int damage = parsed.packet.payload.value("damage", 0);
-            const bool lethal = parsed.packet.payload.value("lethal", false);
-            devy::log::write(Level::Info, "Damage received: damage=" + std::to_string(damage) +
-                                              " lethal=" + std::string(lethal ? "true" : "false") +
-                                              ".");
+          authoritative_hud.apply_damage_event(parsed.packet.payload, local_player_id);
+          if (const auto message =
+                  event_feed.consume_reliable_damage_event(parsed.packet.payload, local_player_id);
+              message.has_value()) {
+            push_event_banner(message.value());
           }
         } else if (parsed.packet.type == devy::net::MessageType::MatchState) {
-          const std::string state = parsed.packet.payload.value("state", std::string("unknown"));
-          const int remaining_seconds = static_cast<int>(
-              std::floor(parsed.packet.payload.value("remaining_seconds", 0.0)));
-          if (state != last_match_state || remaining_seconds != last_match_seconds) {
-            last_match_state = state;
-            last_match_seconds = remaining_seconds;
-            devy::log::write(Level::Info,
-                             "Reliable match_state: " + state + " (" +
-                                 std::to_string(remaining_seconds) + "s).");
+          authoritative_hud.apply_match_state(parsed.packet.payload);
+          if (const auto message = event_feed.consume_reliable_match_state(parsed.packet.payload);
+              message.has_value()) {
+            push_event_banner(message.value());
           }
         }
 
@@ -644,6 +638,10 @@ int main(int argc, char** argv) {
         connection_ready = false;
         joined = false;
         local_player_id = 0U;
+        authoritative_hud.reset();
+        event_feed.reset();
+        event_banner.clear();
+        event_banner_expires_at_ms = 0U;
         devy::log::write(Level::Warn, "Disconnected from server.");
         push_quit_event();
       }
@@ -751,6 +749,25 @@ int main(int argc, char** argv) {
     const float max_distance = static_cast<float>(draw_distance_chunks * devy::voxel::kChunkSize);
     renderer.flush(camera.view_matrix(), camera.proj_matrix(aspect), camera.position(),
                    max_distance);
+
+    std::string next_window_title = base_window_title;
+    if (joined && local_player_id != 0U) {
+      next_window_title =
+          authoritative_hud.compose_window_title(base_window_title, active_weapon_id);
+      const uint64_t now_ms = SDL_GetTicks64();
+      if (!event_banner.empty() && now_ms < event_banner_expires_at_ms) {
+        next_window_title += " | Event " + event_banner;
+      } else if (!event_banner.empty() && now_ms >= event_banner_expires_at_ms) {
+        event_banner.clear();
+        event_banner_expires_at_ms = 0U;
+      }
+    } else if (connection_ready) {
+      next_window_title = base_window_title + " | awaiting join";
+    }
+    if (next_window_title != last_window_title) {
+      SDL_SetWindowTitle(app.window(), next_window_title.c_str());
+      last_window_title = next_window_title;
+    }
 
     enet_host_flush(net_host);
   });

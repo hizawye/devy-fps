@@ -1,4 +1,6 @@
 add_library(client_runtime
+  src/AuthoritativeEventFeed.cpp
+  src/AuthoritativeHudModel.cpp
   src/ChunkSyncApplier.cpp
   src/PredictionReconciler.cpp
   src/WeaponFireEmitter.cpp
