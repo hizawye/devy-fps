@@ -7,11 +7,12 @@ if [[ "$#" -lt 1 ]]; then
 fi
 
 repo_root="$1"
+config_path="${DEVY_TEST_CONFIG_PATH:-${repo_root}/config/server_test.json}"
 out_dir="${repo_root}/artifacts/reliability/ctest-chaos"
 rm -rf "${out_dir}"
 
 "${repo_root}/scripts/chaos-drill.sh" \
-  "${repo_root}/config/server_test.json" \
+  "${config_path}" \
   4 \
   3 \
   "${out_dir}" \
