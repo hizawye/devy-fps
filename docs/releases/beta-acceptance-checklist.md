@@ -59,10 +59,10 @@ Use this checklist for `v0.3.0-beta` candidate validation and tag readiness.
   - `artifacts/releases/beta-gate/dry-run/summary.txt`.
 
 ## Release Metadata Checklist
-- [ ] Known issues updated: `docs/releases/beta-known-issues.md`.
-- [ ] Tag flow validated: `docs/releases/beta-release-tag-flow.md`.
-- [ ] Candidate notes generated and reviewed: `docs/releases/v0.3.0-beta-notes.md`.
-- [ ] Notes header `Range:` matches intended `from_ref..HEAD`.
+- [x] Known issues updated: `docs/releases/beta-known-issues.md`.
+- [x] Tag flow validated: `docs/releases/beta-release-tag-flow.md`.
+- [x] Candidate notes generated and reviewed: `docs/releases/v0.3.0-beta-notes.md`.
+- [x] Notes header `Range:` matches intended `from_ref..HEAD`.
 
 ## Final Sign-Off
 - [ ] Gameplay owner sign-off.
