@@ -1096,3 +1096,257 @@
   - None known locally for release cut.
 - Next immediate starting point:
   - Create `chore(release): v0.2.0-alpha` commit + annotated tag, push `main` and tag, then verify required GitHub checks.
+
+## Post-Alpha Beta Planning Kickoff (2026-02-19)
+- Current progress:
+  - Alpha release cut is complete and published:
+    - commit/tag: `dd31782` + `v0.2.0-alpha`,
+    - GitHub checks:
+      - CI run `22187437854` -> `success`,
+      - Reliability run `22187438005` -> `success`.
+  - Added a decision-complete beta planning artifact:
+    - `docs/releases/v0.3.0-beta-plan.md`.
+  - Updated architecture/release docs to carry beta direction and scope:
+    - `docs/architecture.md`,
+    - `docs/releases/README.md`.
+  - Clarified workspace policy for local worktrees:
+    - `.worktrees/` is local-only and excluded from release/docs commits.
+- Blockers/Bugs:
+  - No active blocker for starting beta implementation backlog.
+- Next immediate starting point:
+  - Execute `v0.3.0-beta` item `B4.1` first:
+    - add `scripts/beta-release-gate.sh`,
+    - add coverage under `tests/scripts/` + `tests/CMakeLists.txt`,
+    - wire README/doc references and validate via release-related CTest targets.
+- Note:
+  - This section supersedes older historical "Next immediate starting point" entries above, which are retained as timeline history.
+
+## Beta Track B4.1 Implementation Update (2026-02-19)
+- Current progress:
+  - Implemented beta release-gate orchestrator:
+    - `scripts/beta-release-gate.sh`.
+  - Added release-test coverage for the beta gate:
+    - `tests/scripts/assert-beta-release-gate.sh`,
+    - `tests/CMakeLists.txt` (`server.release.beta_gate`).
+  - Updated operator docs for gate discoverability:
+    - `README.md` (script command + release CTest list).
+  - Local verification:
+    - `ctest --preset debug-vcpkg -R '^server\\.release\\.beta_gate$' --output-on-failure` -> pass.
+    - `ctest --preset debug-vcpkg -R '^server\\.release\\.' --output-on-failure` -> fail (`1/7` pass) due existing release-lane failures outside B4.1 scope.
+- Blockers/Bugs:
+  - Existing release-lane failures observed on local default config path (`config/server_test.json`, port `17777`):
+    - `server.release.install_smoke`,
+    - `server.release.protocol_upgrade_downgrade`,
+    - `server.release.alpha_endurance_short`,
+    - `server.release.release_notes_generation` (timeout),
+    - cascading `server.release.beta_gate` failure when acceptance regression re-runs failing release checks.
+- Next immediate starting point:
+  - Execute `v0.3.0-beta` item `B3.1`:
+    - calibrate `runtime.profiling.alerts.*` thresholds from recent soak outputs,
+    - update telemetry tests and run `ctest -R '^(server\\.telemetry\\.alert_dry_run|server\\.unit)$'`.
+
+## Beta Track B3.1 Implementation Update (2026-02-19)
+- Current progress:
+  - Calibrated telemetry alert thresholds using recent soak/release diagnostics evidence (`11,467` runtime windows under `artifacts/releases/**/server*.log`):
+    - normal profile/restart windows: packet drop stayed below roughly `0.13`, parse error stayed at `0.0`, tick lag stayed at or below `0.05`,
+    - chaos/fault windows: packet drop/parse error commonly ranged around `0.68+`.
+  - Updated default alert thresholds in:
+    - `config/server.json`,
+    - `config/server_test.json`.
+  - New defaults:
+    - `max_tick_lag_rate=0.10`,
+    - `max_packet_drop_rate=0.20`,
+    - `max_parse_error_rate=0.10`,
+    - `min_active_players=0` (unchanged/disabled to avoid idle-window noise).
+  - Expanded telemetry unit coverage in `tests/server/RuntimeTelemetryTests.cpp`:
+    - below-threshold window produces no alerts,
+    - sustained above-threshold window produces `tick_lag_rate_exceeded`, `packet_drop_rate_exceeded`, and `parse_error_rate_exceeded`.
+  - Local verification:
+    - `ctest --preset debug-vcpkg -R '^(server\\.telemetry\\.alert_dry_run|server\\.unit)$' --output-on-failure` -> pass.
+- Blockers/Bugs:
+  - No blocker in B3.1 scope.
+- Next immediate starting point:
+  - Execute `v0.3.0-beta` item `B1.1`:
+    - weapon/damage balancing pass (`config/weapons.json`, shared weapon helpers, and combat/unit expectation updates).
+
+## Beta Track B1.1 Implementation Update (2026-02-19)
+- Current progress:
+  - Tuned weapon damage/fire-rate defaults in `config/weapons.json`:
+    - pistol: `damage=20`, `rate_of_fire=3.4`,
+    - rifle: `damage=24`, `rate_of_fire=4.0`,
+    - shotgun: `pellets=8`, `damage_per_pellet=9`,
+    - railgun: `damage=85`, `rate_of_fire=0.8`.
+  - Updated deterministic combat/unit expectations to match new balance targets:
+    - `tests/shared/WeaponsTests.cpp` DPS expectations updated,
+    - `tests/server/CombatSimulationTests.cpp` fixture weapon stats and damage assertions updated.
+  - Local verification:
+    - `ctest --preset debug-vcpkg -R '^(shared\\.unit|server\\.unit)$' --output-on-failure` -> pass.
+- Blockers/Bugs:
+  - No blocker in B1.1 scope.
+- Next immediate starting point:
+  - Execute `v0.3.0-beta` item `B1.2`:
+    - loot pacing and inventory pressure tuning.
+
+## Beta Track B1.2 Implementation Update (2026-02-19)
+- Current progress:
+  - Tuned treasure economy in `config/treasure.json` to reduce high-tier value spikes and increase weight pressure:
+    - `relic` -> `value=90`, `weight=5`,
+    - `artifact` -> `value=220`, `weight=8`,
+    - `core_shard` -> `value=420`, `weight=12`.
+  - Tuned inventory pacing/pressure defaults:
+    - `config/server.json`: `spawn_interval_ticks=75`, `max_active_spawns=48`,
+      `pickup_radius_units=2.25`, `max_items_per_player=12`, `max_weight_per_player=32`,
+    - `config/server_test.json`: `spawn_interval_ticks=16`, `max_active_spawns=18`,
+      `pickup_radius_units=2.25`, `max_items_per_player=10`, `max_weight_per_player=28`.
+  - Added deterministic weight-limit regression coverage in
+    `tests/server/InventoryLootSimulationTests.cpp`.
+  - Local verification:
+    - `ctest --preset debug-vcpkg -R '^server\\.unit$' --output-on-failure` -> pass.
+- Blockers/Bugs:
+  - No blocker in B1.2 scope.
+- Next immediate starting point:
+  - Execute `v0.3.0-beta` item `B1.3`:
+    - match lifecycle default tuning.
+
+## Beta Track B1.3 Implementation Update (2026-02-19)
+- Current progress:
+  - Tuned beta lifecycle defaults for faster turnover:
+    - `config/server.json`: `match_time_minutes=30`, `pre_match_seconds=3`,
+      `duration_seconds=1800`, `respawn_delay_seconds=2`,
+    - `config/server_120.json`: `pre_match_seconds=3`, `respawn_delay_seconds=2`.
+  - Updated lifecycle timer expectations in
+    `tests/server/MatchLifecycleSimulationTests.cpp` for the new pacing window.
+  - Local verification:
+    - `ctest --preset debug-vcpkg -R '^server\\.unit$' --output-on-failure` -> pass,
+    - `ctest --preset debug-vcpkg -R '^(shared\\.unit|server\\.unit)$' --output-on-failure` -> pass.
+- Blockers/Bugs:
+  - No blocker in B1.3 scope.
+- Next immediate starting point:
+  - Execute `v0.3.0-beta` item `B2.1`:
+    - HUD clarity pass for authoritative health/ammo/inventory/match phase visibility.
+
+## Beta Track B2.1 Implementation Update (2026-02-19)
+- Current progress:
+  - Added authoritative client HUD state model:
+    - `client/include/client/AuthoritativeHudModel.h`,
+    - `client/src/AuthoritativeHudModel.cpp`.
+  - Wired interactive client authoritative HUD consumption in `client/src/main.cpp`:
+    - consumes local-player fields from `state_snapshot.players[*]` (`health`, `alive`, `last_shot_seq`, `coins`, `inventory_items`),
+    - consumes authoritative `match_state` from snapshot and reliable `match_state` packets,
+    - consumes reliable `inventory_update` and `damage_event` (`victim_health`, `lethal`) for faster HUD freshness.
+  - Added an always-on in-client HUD display path via SDL window title updates (change-only updates to avoid per-frame title churn) including:
+    - health/alive,
+    - weapon context (`active_weapon_id`) + authoritative `last_shot_seq`,
+    - inventory coins/items,
+    - match phase/remaining seconds.
+  - Added client unit coverage:
+    - `tests/client/AuthoritativeHudModelTests.cpp`,
+    - `tests/CMakeLists.txt` (`client.unit` includes new HUD tests).
+  - Local verification:
+    - `ctest --preset debug-vcpkg -R '^(client\\.unit|server\\.smoke)$' --output-on-failure` -> pass with isolated test config override:
+      - `DEVY_TEST_CONFIG_PATH=/home/nagara/dev/devy-fps/artifacts/tmp/server_test_port18777.json`
+      - (default `17777` is currently occupied by a long-running endurance process in this workspace).
+- Blockers/Bugs:
+  - No blocker in B2.1 scope.
+  - Current protocol does not replicate per-weapon live ammo counts; HUD uses weapon context + authoritative `last_shot_seq` until ammo replication exists.
+- Next immediate starting point:
+  - Execute `v0.3.0-beta` item `B2.2`:
+    - player-facing event feedback polish for hit confirmation, pickup success/failure, and phase transitions.
+
+## Beta Track B2.2 Implementation Update (2026-02-19)
+- Current progress:
+  - Added authoritative event feedback runtime model:
+    - `client/include/client/AuthoritativeEventFeed.h`,
+    - `client/src/AuthoritativeEventFeed.cpp`.
+  - Implemented local-player-facing event message mapping for authoritative streams:
+    - damage confirmations and elimination events (reliable + snapshot, deduplicated),
+    - treasure pickup success/failure outcomes from snapshot events,
+    - match phase transitions and respawn/death feedback from authoritative events.
+  - Wired interactive client event-feed integration in `client/src/main.cpp`:
+    - consumes snapshot `events[]` through `AuthoritativeEventFeed::consume_snapshot_events(...)`,
+    - consumes reliable `damage_event` and `match_state` through feed helpers,
+    - resets feed state on join/disconnect to avoid stale event carry-over.
+  - Added short-lived player-facing event banner rendering in the SDL window title:
+    - appends `| Event <message>` while active (`~2.5s` TTL),
+    - updates only on title change to avoid per-frame churn.
+  - Added client unit coverage:
+    - `tests/client/AuthoritativeEventFeedTests.cpp`,
+    - `tests/CMakeLists.txt` (`client.unit` includes event-feed tests).
+  - Local verification:
+    - `ctest --preset debug-vcpkg -R '^(client\\.unit|shared\\.unit)$' --output-on-failure` -> pass.
+- Blockers/Bugs:
+  - No blocker in B2.2 scope.
+- Next immediate starting point:
+  - Execute `v0.3.0-beta` item `B3.2`:
+    - reliability soak/restart evidence normalization for consistent summary schema and retention behavior.
+
+## Beta Track B3.2 Implementation Update (2026-02-19)
+- Current progress:
+  - Normalized reliability script summary headers to a shared machine-readable schema:
+    - `schema_version=1`,
+    - `summary_kind=<reliability_watchdog|reliability_chaos|reliability_restart_recovery|reliability_soak>`,
+    - `status=pass|fail`,
+    - common timing/output metadata fields (`started_at_utc`, `finished_at_utc`, `elapsed_seconds`, `out_dir`).
+  - Added watchdog attempt metrics file output:
+    - `scripts/watchdog-server.sh` now emits `attempt-metrics.csv`,
+    - `summary.txt` includes stable references and normalized final status semantics.
+  - Added bounded retention controls for soak-cycle artifacts:
+    - `scripts/reliability-soak.sh` now supports `run_retention_keep` (default `12`),
+    - old `runs/chaos-cycle-*` and `runs/restart-cycle-*` directories are pruned beyond retention.
+  - Updated reliability CTest assertions to enforce normalized summary shape:
+    - `tests/scripts/assert-watchdog-restart.sh`,
+    - `tests/scripts/assert-chaos-drill.sh`,
+    - `tests/scripts/assert-restart-recovery.sh`,
+    - `tests/scripts/assert-reliability-soak.sh`.
+  - Updated script signature docs:
+    - `README.md`,
+    - `docs/tech-stack.md`,
+    - `docs/architecture.md`.
+  - Local verification:
+    - `ctest --preset debug-vcpkg -R '^server\\.reliability\\.' --output-on-failure` -> pass (`4/4`).
+- Blockers/Bugs:
+  - No blocker in B3.2 scope.
+- Next immediate starting point:
+  - Execute `v0.3.0-beta` item `B4.2`:
+    - beta release docs/checklists (`beta-acceptance-checklist`, `beta-known-issues`, `beta-release-tag-flow`) and release docs index updates.
+
+## Beta Track B4.2 Implementation Update (2026-02-19)
+- Current progress:
+  - Added beta release operator docs:
+    - `docs/releases/beta-acceptance-checklist.md`,
+    - `docs/releases/beta-known-issues.md`,
+    - `docs/releases/beta-release-tag-flow.md`.
+  - Updated release docs index:
+    - `docs/releases/README.md` now references beta release-gate docs alongside alpha docs.
+  - Hardened beta gate required-doc enforcement:
+    - `scripts/beta-release-gate.sh` now requires the beta checklist/known-issues/tag-flow docs,
+    - `tests/scripts/assert-beta-release-gate.sh` now asserts `missing_required_docs=0`.
+  - Local verification:
+    - manual doc review for operator completeness and unambiguous notes range/tag flow,
+    - `ctest --preset debug-vcpkg -R '^server\\.release\\.beta_gate$' --output-on-failure` -> pass (`1/1`).
+- Blockers/Bugs:
+  - No blocker in B4.2 scope.
+- Next immediate starting point:
+  - Run final beta candidate quality gates and prepare release cut evidence:
+    - `ctest --preset debug-vcpkg -R '^server\\.release\\.' --output-on-failure`,
+    - `ctest --preset debug-vcpkg -R '^server\\.reliability\\.' --output-on-failure`,
+    - `scripts/beta-release-gate.sh v0.3.0-beta ...` with final candidate inputs.
+
+## Beta Candidate Gate Sweep Update (2026-02-19)
+- Current progress:
+  - Ran mandatory gate subsets sequentially (to avoid local shared-port contention between release and reliability suites):
+    - `ctest --preset debug-vcpkg -R '^server\\.reliability\\.' --output-on-failure` -> pass (`4/4`),
+    - `ctest --preset debug-vcpkg -R '^server\\.release\\.' --output-on-failure` -> pass (`7/7`).
+  - Ran documented beta gate dry-run command:
+    - `scripts/beta-release-gate.sh v0.3.0-beta-candidate config/server_test.json debug-vcpkg 8 8 30 artifacts/releases/beta-gate/b4.2-dry-run 0 v0.2.0-alpha`.
+  - Beta dry-run evidence:
+    - `artifacts/releases/beta-gate/b4.2-dry-run/summary.txt` -> `status=pass`, `acceptance_status=pass`, `endurance_status=skipped`, `release_notes_status=pass`, `missing_required_docs=0`.
+  - Generated candidate notes artifact:
+    - `docs/releases/v0.3.0-beta-candidate-notes.md`.
+- Blockers/Bugs:
+  - No blocker found in current release/reliability gate subsets.
+- Next immediate starting point:
+  - Execute final beta cut decision workflow:
+    - confirm desired `from_ref`,
+    - choose endurance policy for final gate (`run_endurance=0|1`),
+    - finalize `docs/releases/v0.3.0-beta-notes.md` and tag-cut commit/tag commands from `docs/releases/beta-release-tag-flow.md`.

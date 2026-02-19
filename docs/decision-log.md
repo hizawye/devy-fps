@@ -705,3 +705,152 @@
 - Accepted standalone acceptance-pack result from `artifacts/releases/alpha-acceptance/v0.2.0-alpha-final-20260219-160601/summary.txt`:
   - `status=pass`, `regression_status=pass`, `profile_load_status=pass`, `chaos_drill_status=pass`, `restart_recovery_status=pass`.
 - Release-cut decision: proceed with `chore(release): v0.2.0-alpha` commit + annotated `v0.2.0-alpha` tag and push for remote check verification.
+- Recorded release publication completion:
+  - pushed commit/tag: `dd31782` + `v0.2.0-alpha`,
+  - required checks green:
+    - CI `22187437854`,
+    - Reliability `22187438005`.
+- Chosen next milestone as `v0.3.0-beta` planning and execution with a fixed-order backlog documented in:
+  - `docs/releases/v0.3.0-beta-plan.md`.
+- Chosen beta defaults:
+  - keep protocol support window pinned to v1 for this milestone,
+  - keep deployment model as single authoritative server process,
+  - start implementation with release-gate automation (`B4.1`) before feature tuning tracks.
+- Chosen workspace hygiene rule:
+  - `.worktrees/` is local-only state and must remain untracked in release/docs commits.
+- Implemented `v0.3.0-beta` `B4.1` as an explicit beta-gate wrapper:
+  - added `scripts/beta-release-gate.sh` with machine-readable `summary.txt` output and optional endurance toggle (`run_endurance`),
+  - reused current alpha acceptance/endurance runners as beta gate evidence sources until B4.2 introduces beta-specific release docs/checklists.
+- Added release-lane coverage for the new gate:
+  - new assertion script `tests/scripts/assert-beta-release-gate.sh`,
+  - registered CTest target `server.release.beta_gate` in `tests/CMakeLists.txt`.
+- Updated operator-facing command inventory:
+  - documented `scripts/beta-release-gate.sh` and `server.release.beta_gate` in `README.md`.
+- Chosen next implementation step after B4.1:
+  - proceed to `B3.1` telemetry threshold calibration before gameplay/client tuning tracks.
+- Verification decision for B4.1:
+  - treat `server.release.beta_gate` targeted pass as implementation validation baseline,
+  - record current full release-lane failures (`server.release.install_smoke`, `server.release.protocol_upgrade_downgrade`,
+    `server.release.alpha_endurance_short`, `server.release.release_notes_generation` timeout) as pre-existing blockers
+    to resolve separately from B4.1 scope.
+- Implemented `v0.3.0-beta` `B3.1` telemetry threshold calibration using local release/soak evidence:
+  - sampled `11,467` runtime diagnostics windows from `artifacts/releases/**/server*.log`,
+  - observed normal profile/restart windows with packet drop below ~`0.13`, parse error near `0.0`, tick lag at or below `0.05`,
+  - observed chaos/fault windows with packet drop/parse error commonly around `0.68+`.
+- Chosen calibrated runtime alert defaults:
+  - `max_tick_lag_rate=0.10`,
+  - `max_packet_drop_rate=0.20`,
+  - `max_parse_error_rate=0.10`,
+  - keep `min_active_players=0` by default to avoid idle/post-match alert noise.
+- Updated telemetry regression coverage:
+  - `tests/server/RuntimeTelemetryTests.cpp` now validates both below-threshold no-alert behavior and sustained above-threshold multi-alert behavior for calibrated thresholds.
+- Verification decision for B3.1:
+  - `ctest --preset debug-vcpkg -R '^(server\\.telemetry\\.alert_dry_run|server\\.unit)$'` pass is sufficient completion evidence for this scope.
+- Chosen next implementation step after B3.1:
+  - proceed to `B1.1` weapon/damage balancing.
+- Implemented `v0.3.0-beta` `B1.1` weapon/damage balancing with updated defaults:
+  - pistol (`damage=20`, `rate_of_fire=3.4`),
+  - rifle (`damage=24`, `rate_of_fire=4.0`),
+  - shotgun (`pellets=8`, `damage_per_pellet=9`),
+  - railgun (`damage=85`, `rate_of_fire=0.8`).
+- Updated deterministic combat regressions for B1.1:
+  - `tests/shared/WeaponsTests.cpp` DPS expectations aligned to tuned defaults,
+  - `tests/server/CombatSimulationTests.cpp` fixture/expectation updates for tuned damage values.
+- Verification decision for B1.1:
+  - `ctest --preset debug-vcpkg -R '^(shared\\.unit|server\\.unit)$'` pass is sufficient completion evidence for this scope.
+- Implemented `v0.3.0-beta` `B1.2` loot pacing and inventory pressure tuning:
+  - tuned `config/treasure.json` high-tier value/weight ratios (`relic`, `artifact`, `core_shard`) to reduce value spikes,
+  - tuned `config/server.json` and `config/server_test.json` inventory pacing defaults (spawn interval, active-spawn cap, pickup radius, item/weight caps) for reduced dead phases and tighter inventory pressure.
+- Added B1.2 deterministic regression coverage:
+  - `tests/server/InventoryLootSimulationTests.cpp` now includes explicit `WeightLimitExceeded` pickup-path coverage.
+- Verification decision for B1.2:
+  - `ctest --preset debug-vcpkg -R '^server\\.unit$'` pass is sufficient completion evidence for this scope.
+- Implemented `v0.3.0-beta` `B1.3` match lifecycle default tuning for beta session turnover:
+  - `config/server.json`: shortened pre-match and match duration, shortened respawn delay, and aligned legacy minute field,
+  - `config/server_120.json`: shortened pre-match and respawn delay while preserving long-session duration.
+- Updated B1.3 lifecycle regression timing expectations:
+  - `tests/server/MatchLifecycleSimulationTests.cpp` now validates the new pre-match/in-match/post-match timing window.
+- Verification decision for B1.3:
+  - `ctest --preset debug-vcpkg -R '^server\\.unit$'` pass is sufficient lifecycle-scope evidence,
+  - `ctest --preset debug-vcpkg -R '^(shared\\.unit|server\\.unit)$'` pass is sufficient combined gameplay/lifecycle sanity evidence.
+- Chosen next implementation step after B1.3:
+  - proceed to `B2.1` HUD clarity for authoritative state.
+- Implemented `v0.3.0-beta` `B2.1` HUD clarity with a dedicated client runtime model:
+  - added `client::AuthoritativeHudModel` to aggregate authoritative HUD fields from `state_snapshot`, reliable `inventory_update`, reliable `match_state`, and reliable `damage_event` payloads.
+- Chosen low-risk HUD rendering path for this slice:
+  - render HUD values through SDL window-title updates (change-only) instead of adding a new text/UI rendering stack in this milestone.
+- Chosen authoritative HUD field mapping:
+  - local-player `health`, `alive`, `last_shot_seq`, `coins`, and `inventory_items` from server-replicated payloads,
+  - match `state` and `remaining_seconds` from authoritative match payloads.
+- Chosen temporary ammo-context representation:
+  - show weapon context (`active_weapon_id`) plus authoritative `last_shot_seq`,
+  - defer live ammo counts to a future protocol/runtime extension since ammo is not currently replicated by server payloads.
+- Added targeted client regression coverage for HUD parsing/composition:
+  - `tests/client/AuthoritativeHudModelTests.cpp` integrated into `client.unit`.
+- Verification decision for B2.1:
+  - treat `ctest --preset debug-vcpkg -R '^(client\\.unit|server\\.smoke)$'` pass as sufficient scope evidence,
+  - execute smoke on isolated test config (`DEVY_TEST_CONFIG_PATH=.../server_test_port18777.json`) while long-run endurance owns default `17777`.
+- Chosen next implementation step after B2.1:
+  - proceed to `B2.2` player-facing event feedback polish.
+- Implemented `v0.3.0-beta` `B2.2` player-facing event feedback polish with a dedicated client runtime model:
+  - added `client::AuthoritativeEventFeed` to parse authoritative event streams and emit local-player feedback messages for hit confirmation, elimination/death, pickup outcomes, respawn, and match phase transitions.
+- Chosen event-stream consistency strategy for B2.2:
+  - consume both reliable (`damage_event`, `match_state`) and snapshot (`events[]`) streams through one feed model,
+  - deduplicate duplicate reliable/snapshot damage confirmations using `(tick, attacker_id, victim_id, shot_seq)` signatures.
+- Chosen low-friction UI feedback path for this slice:
+  - append transient event banner text to SDL window title (`| Event ...`) with short TTL rather than introducing an additional in-world/UI text system.
+- Added targeted client regression coverage for event parsing/dedup behavior:
+  - `tests/client/AuthoritativeEventFeedTests.cpp` integrated into `client.unit`.
+- Verification decision for B2.2:
+  - treat `ctest --preset debug-vcpkg -R '^(client\\.unit|shared\\.unit)$'` pass as sufficient scope evidence.
+- Chosen next implementation step after B2.2:
+  - proceed to `B3.2` reliability output normalization.
+- Implemented `v0.3.0-beta` `B3.2` reliability evidence normalization across drill/soak scripts:
+  - standardized `summary.txt` headers with shared machine-readable keys:
+    - `schema_version=1`,
+    - `summary_kind=<reliability_watchdog|reliability_chaos|reliability_restart_recovery|reliability_soak>`,
+    - `status=pass|fail`,
+    - common timing/output metadata (`started_at_utc`, `finished_at_utc`, `elapsed_seconds`, `out_dir`).
+- Chosen retention normalization for soak cycles:
+  - added `run_retention_keep` support in `scripts/reliability-soak.sh` (default `12`) and prune policy for `runs/chaos-cycle-*` and `runs/restart-cycle-*`.
+- Chosen watchdog evidence normalization strategy:
+  - move per-attempt details into `attempt-metrics.csv` and keep `summary.txt` as stable top-level run metadata for easier gate parsing.
+- Updated reliability assertion coverage to enforce schema conformance:
+  - `tests/scripts/assert-watchdog-restart.sh`,
+  - `tests/scripts/assert-chaos-drill.sh`,
+  - `tests/scripts/assert-restart-recovery.sh`,
+  - `tests/scripts/assert-reliability-soak.sh`.
+- Verification decision for B3.2:
+  - treat `ctest --preset debug-vcpkg -R '^server\\.reliability\\.'` pass as sufficient completion evidence for this scope.
+- Chosen next implementation step after B3.2:
+  - proceed to `B4.2` beta release docs/checklists.
+- Implemented `v0.3.0-beta` `B4.2` beta release docs/checklists:
+  - added `docs/releases/beta-acceptance-checklist.md`,
+  - added `docs/releases/beta-known-issues.md`,
+  - added `docs/releases/beta-release-tag-flow.md`,
+  - updated `docs/releases/README.md` to index beta release docs.
+- Chosen B4.2 release-gate enforcement policy:
+  - promote beta docs from informational-only to required gate artifacts,
+  - updated `scripts/beta-release-gate.sh` required-doc set to include beta checklist/known-issues/tag-flow files.
+- Updated beta-gate assertion coverage:
+  - `tests/scripts/assert-beta-release-gate.sh` now enforces `missing_required_docs=0`.
+- Verification decision for B4.2:
+  - treat manual doc review (operator completeness + explicit release-note range/tag flow) and
+    `ctest --preset debug-vcpkg -R '^server\\.release\\.beta_gate$'` pass as sufficient completion evidence.
+- Chosen next implementation step after B4.2:
+  - run final beta candidate quality-gate sweep and prepare `v0.3.0-beta` tag-cut decision.
+- Verification outcome for beta candidate gate sweep:
+  - `ctest --preset debug-vcpkg -R '^server\\.reliability\\.'` passed (`4/4`),
+  - `ctest --preset debug-vcpkg -R '^server\\.release\\.'` passed (`7/7`) when executed sequentially.
+- Execution note on gate orchestration:
+  - running release and reliability lanes in parallel can produce local false negatives due shared runtime resources/ports;
+    sequential execution is the canonical local verification mode.
+- Ran documented B4.2 beta gate dry-run command and accepted pass evidence:
+  - command:
+    - `scripts/beta-release-gate.sh v0.3.0-beta-candidate config/server_test.json debug-vcpkg 8 8 30 artifacts/releases/beta-gate/b4.2-dry-run 0 v0.2.0-alpha`,
+  - summary:
+    - `status=pass`, `acceptance_status=pass`, `endurance_status=skipped`, `release_notes_status=pass`, `missing_required_docs=0`.
+- Generated candidate notes artifact during dry-run:
+  - `docs/releases/v0.3.0-beta-candidate-notes.md`.
+- Chosen next implementation step after gate sweep:
+  - proceed to final beta cut decision inputs (`from_ref`, endurance policy) and finalize release-note/tag-cut workflow.

@@ -195,6 +195,13 @@ add_test(
 set_tests_properties(server.release.alpha_endurance_short PROPERTIES TIMEOUT 180)
 
 add_test(
+  NAME server.release.beta_gate
+  COMMAND ${CMAKE_SOURCE_DIR}/tests/scripts/assert-beta-release-gate.sh
+          ${CMAKE_SOURCE_DIR}
+)
+set_tests_properties(server.release.beta_gate PROPERTIES TIMEOUT 180)
+
+add_test(
   NAME server.release.release_notes_generation
   COMMAND ${CMAKE_SOURCE_DIR}/tests/scripts/assert-release-notes.sh
           ${CMAKE_SOURCE_DIR}
