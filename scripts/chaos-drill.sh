@@ -21,6 +21,8 @@ if [[ ! -f "${config_path}" ]]; then
   exit 1
 fi
 
+utc_now() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
+
 if ! [[ "${malformed_burst_size}" =~ ^[0-9]+$ ]] || (( malformed_burst_size <= 0 )); then
   echo "malformed_burst_size must be a positive integer" >&2
   exit 1
@@ -106,6 +108,8 @@ mkdir -p "${out_dir}"
 server_log="${out_dir}/server.log"
 client_log="${out_dir}/load-client.log"
 summary_log="${out_dir}/summary.txt"
+run_start_epoch="$(date +%s)"
+run_started_at_utc="$(utc_now)"
 
 wait_for_server_ready() {
   local pid="$1"
@@ -242,8 +246,20 @@ if (( joined_total <= 0 )); then
   pass=0
 fi
 
+run_end_epoch="$(date +%s)"
+run_finished_at_utc="$(utc_now)"
+elapsed_seconds=$((run_end_epoch - run_start_epoch))
+
 {
+  echo "schema_version=1"
+  echo "summary_kind=reliability_chaos"
+  echo "started_at_utc=${run_started_at_utc}"
+  echo "finished_at_utc=${run_finished_at_utc}"
+  echo "elapsed_seconds=${elapsed_seconds}"
+  echo "status=$([[ "${pass}" -eq 1 ]] && echo pass || echo fail)"
   echo "config=${config_path}"
+  echo "out_dir=${out_dir}"
+  echo "retention_policy=single_run"
   echo "clients=${clients}"
   echo "seconds=${seconds}"
   echo "port=${port}"
@@ -266,7 +282,6 @@ fi
   echo "forced_disconnects=${forced_disconnects}"
   echo "joined_total=${joined_total}"
   echo "malformed_sent=${malformed_sent}"
-  echo "status=$([[ "${pass}" -eq 1 ]] && echo pass || echo fail)"
   echo
   echo "load_client_output:"
   sed -n '1,10p' "${client_log}"

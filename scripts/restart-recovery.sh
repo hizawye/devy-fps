@@ -17,6 +17,8 @@ if [[ ! -f "${config_path}" ]]; then
   exit 1
 fi
 
+utc_now() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
+
 find_server_bin() {
   if [[ -n "${DEVY_SERVER_BIN:-}" ]]; then
     echo "${DEVY_SERVER_BIN}"
@@ -90,6 +92,8 @@ server_phase2_log="${out_dir}/server-phase2.log"
 client_phase1_log="${out_dir}/load-client-phase1.log"
 client_phase2_log="${out_dir}/load-client-phase2.log"
 summary_log="${out_dir}/summary.txt"
+run_start_epoch="$(date +%s)"
+run_started_at_utc="$(utc_now)"
 
 port="$(grep -E '"port"\s*:\s*[0-9]+' "${config_path}" | head -n1 | sed -E 's/[^0-9]*([0-9]+).*/\1/')"
 if [[ -z "${port}" ]]; then
@@ -174,8 +178,20 @@ if (( server_phase2_status != 0 )); then
   pass=0
 fi
 
+run_end_epoch="$(date +%s)"
+run_finished_at_utc="$(utc_now)"
+elapsed_seconds=$((run_end_epoch - run_start_epoch))
+
 {
+  echo "schema_version=1"
+  echo "summary_kind=reliability_restart_recovery"
+  echo "started_at_utc=${run_started_at_utc}"
+  echo "finished_at_utc=${run_finished_at_utc}"
+  echo "elapsed_seconds=${elapsed_seconds}"
+  echo "status=$([[ "${pass}" -eq 1 ]] && echo pass || echo fail)"
   echo "config=${config_path}"
+  echo "out_dir=${out_dir}"
+  echo "retention_policy=single_run"
   echo "clients=${clients}"
   echo "phase_seconds=${phase_seconds}"
   echo "port=${port}"
@@ -187,7 +203,6 @@ fi
   echo "phase2_status=${phase2_status}"
   echo "phase2_joined=${phase2_joined}"
   echo "phase2_server_status=${server_phase2_status}"
-  echo "status=$([[ "${pass}" -eq 1 ]] && echo pass || echo fail)"
   echo
   echo "phase1_client_output:"
   sed -n '1,10p' "${client_phase1_log}"
