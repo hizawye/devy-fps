@@ -34,6 +34,8 @@ if ! [[ "${rotation_keep}" =~ ^[0-9]+$ ]] || (( rotation_keep <= 0 )); then
   exit 1
 fi
 
+utc_now() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
+
 find_server_bin() {
   if [[ -n "${DEVY_SERVER_BIN:-}" ]]; then
     echo "${DEVY_SERVER_BIN}"
@@ -70,12 +72,16 @@ fi
 
 mkdir -p "${out_dir}"
 summary_file="${out_dir}/summary.txt"
+attempt_metrics_csv="${out_dir}/attempt-metrics.csv"
+echo "attempt,exit_code,runtime_seconds,log_file,injected_kill" >"${attempt_metrics_csv}"
 
 attempt=0
 restart_count=0
 success=0
 last_exit=0
 kill_after_first_seconds="${DEVY_WATCHDOG_KILL_FIRST_AFTER_SECONDS:-0}"
+run_start_epoch="$(date +%s)"
+run_started_at_utc="$(utc_now)"
 
 while (( attempt <= max_restarts )); do
   attempt=$((attempt + 1))
@@ -107,13 +113,7 @@ while (( attempt <= max_restarts )); do
   end_epoch="$(date +%s)"
   runtime_seconds=$((end_epoch - start_epoch))
 
-  {
-    echo "attempt=${attempt}"
-    echo "exit_code=${exit_code}"
-    echo "runtime_seconds=${runtime_seconds}"
-    echo "log_file=$(basename "${log_file}")"
-    echo
-  } >>"${summary_file}"
+  echo "${attempt},${exit_code},${runtime_seconds},$(basename "${log_file}"),${injected_kill}" >>"${attempt_metrics_csv}"
 
   old_attempt=$((attempt - rotation_keep))
   if (( old_attempt > 0 )); then
@@ -134,16 +134,31 @@ while (( attempt <= max_restarts )); do
 
 done
 
+run_end_epoch="$(date +%s)"
+run_finished_at_utc="$(utc_now)"
+elapsed_seconds=$((run_end_epoch - run_start_epoch))
+status="$([[ "${success}" -eq 1 ]] && echo pass || echo fail)"
+
 {
-  echo "status=$([[ "${success}" -eq 1 ]] && echo success || echo failed)"
+  echo "schema_version=1"
+  echo "summary_kind=reliability_watchdog"
+  echo "started_at_utc=${run_started_at_utc}"
+  echo "finished_at_utc=${run_finished_at_utc}"
+  echo "elapsed_seconds=${elapsed_seconds}"
+  echo "status=${status}"
+  echo "config=${config_path}"
+  echo "out_dir=${out_dir}"
+  echo "retention_policy=attempt_logs:max=${rotation_keep}"
+  echo "attempt_metrics_csv=$(basename "${attempt_metrics_csv}")"
   echo "attempts=${attempt}"
   echo "restarts=${restart_count}"
   echo "max_restarts=${max_restarts}"
   echo "last_exit=${last_exit}"
-  echo "config=${config_path}"
   echo "run_seconds=${run_seconds}"
+  echo "backoff_seconds=${backoff_seconds}"
+  echo "rotation_keep=${rotation_keep}"
   echo "server_bin=${server_bin}"
-} >>"${summary_file}"
+} >"${summary_file}"
 
 if (( success == 1 )); then
   echo "Watchdog run succeeded. Artifacts: ${out_dir}"

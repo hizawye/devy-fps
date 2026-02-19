@@ -28,9 +28,23 @@ fi
 
 attempts="$(grep -E '^attempts=' "${summary}" | tail -n1 | cut -d= -f2)"
 status="$(grep -E '^status=' "${summary}" | tail -n1 | cut -d= -f2)"
+schema_version="$(grep -E '^schema_version=' "${summary}" | tail -n1 | cut -d= -f2)"
+summary_kind="$(grep -E '^summary_kind=' "${summary}" | tail -n1 | cut -d= -f2)"
 
-if [[ "${status}" != "success" ]]; then
-  echo "Watchdog summary status is not success" >&2
+if [[ "${schema_version}" != "1" ]]; then
+  echo "Watchdog summary schema_version is not 1" >&2
+  cat "${summary}"
+  exit 1
+fi
+
+if [[ "${summary_kind}" != "reliability_watchdog" ]]; then
+  echo "Watchdog summary_kind is not reliability_watchdog" >&2
+  cat "${summary}"
+  exit 1
+fi
+
+if [[ "${status}" != "pass" ]]; then
+  echo "Watchdog summary status is not pass" >&2
   cat "${summary}"
   exit 1
 fi

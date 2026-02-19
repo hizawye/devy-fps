@@ -10,6 +10,7 @@ out_dir="${4:-${repo_root}/artifacts/reliability/soak/$(date +%Y%m%d-%H%M%S)}"
 chaos_seconds="${5:-12}"
 restart_phase_seconds="${6:-4}"
 restart_every_cycles="${7:-4}"
+run_retention_keep="${8:-12}"
 
 if [[ ! -f "${config_path}" && -f "${repo_root}/${config_path}" ]]; then
   config_path="${repo_root}/${config_path}"
@@ -20,12 +21,34 @@ if [[ ! -f "${config_path}" ]]; then
   exit 1
 fi
 
+utc_now() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
+
+prune_cycle_dirs() {
+  local runs_root="$1"
+  local prefix="$2"
+  local keep="$3"
+
+  mapfile -t cycle_dirs < <(find "${runs_root}" -mindepth 1 -maxdepth 1 -type d -name "${prefix}-*" | sort -V)
+  local total="${#cycle_dirs[@]}"
+  if (( total <= keep )); then
+    return
+  fi
+
+  local remove_count=$((total - keep))
+  local i=0
+  while (( i < remove_count )); do
+    rm -rf "${cycle_dirs[$i]}"
+    i=$((i + 1))
+  done
+}
+
 for pair in \
   "duration_minutes:${duration_minutes}" \
   "clients:${clients}" \
   "chaos_seconds:${chaos_seconds}" \
   "restart_phase_seconds:${restart_phase_seconds}" \
-  "restart_every_cycles:${restart_every_cycles}"; do
+  "restart_every_cycles:${restart_every_cycles}" \
+  "run_retention_keep:${run_retention_keep}"; do
   key="${pair%%:*}"
   value="${pair##*:}"
   if ! [[ "${value}" =~ ^[0-9]+$ ]] || (( value <= 0 )); then
@@ -44,10 +67,11 @@ echo "cycle,family,rate_hz,burst,disconnect_ms,status,invalid_drops,covered_erro
 echo "cycle,status,phase1_joined,phase2_joined" >"${restart_metrics_csv}"
 
 start_epoch="$(date +%s)"
+started_at_utc="$(utc_now)"
 deadline_epoch=$((start_epoch + duration_minutes * 60))
 
 watchdog_out="${out_dir}/watchdog"
-watchdog_status="failed"
+watchdog_status="fail"
 if DEVY_WATCHDOG_KILL_FIRST_AFTER_SECONDS=1 \
   "${repo_root}/scripts/watchdog-server.sh" \
     "${config_path}" \
@@ -56,7 +80,7 @@ if DEVY_WATCHDOG_KILL_FIRST_AFTER_SECONDS=1 \
     0.2 \
     "${watchdog_out}" \
     6 >>"${timeline_log}" 2>&1; then
-  watchdog_status="success"
+  watchdog_status="pass"
 fi
 
 cycle=0
@@ -112,6 +136,7 @@ while (( "$(date +%s)" < deadline_epoch )); do
     malformed_sent="$(grep -E '^malformed_sent=' "${chaos_summary}" | tail -n1 | cut -d= -f2 || true)"
   fi
   echo "${cycle},${family},${rate_hz},${burst},${disconnect_ms},${chaos_status},${invalid_drops:-0},${covered_categories:-0},${forced_disconnects:-0},${joined_total:-0},${malformed_sent:-0}" >>"${chaos_metrics_csv}"
+  prune_cycle_dirs "${out_dir}/runs" "chaos-cycle" "${run_retention_keep}"
 
   if (( cycle % restart_every_cycles == 0 )) && (( "$(date +%s)" < deadline_epoch )); then
     restart_out="${out_dir}/runs/restart-cycle-${cycle}"
@@ -135,23 +160,41 @@ while (( "$(date +%s)" < deadline_epoch )); do
       phase2_joined="$(grep -E '^phase2_joined=' "${restart_summary}" | tail -n1 | cut -d= -f2 || true)"
     fi
     echo "${cycle},${restart_status},${phase1_joined:-0},${phase2_joined:-0}" >>"${restart_metrics_csv}"
+    prune_cycle_dirs "${out_dir}/runs" "restart-cycle" "${run_retention_keep}"
   fi
 done
 
 end_epoch="$(date +%s)"
+finished_at_utc="$(utc_now)"
 elapsed_seconds=$((end_epoch - start_epoch))
 
 chaos_count=$((chaos_pass + chaos_fail))
 restart_count=$((restart_pass + restart_fail))
 overall_status="pass"
-if [[ "${watchdog_status}" != "success" ]] || (( chaos_fail > 0 )) || (( chaos_count == 0 )) || (( restart_fail > 0 )); then
+if [[ "${watchdog_status}" != "pass" ]] || (( chaos_fail > 0 )) || (( chaos_count == 0 )) || (( restart_fail > 0 )); then
   overall_status="fail"
 fi
 
+retained_chaos_dirs="$(find "${out_dir}/runs" -mindepth 1 -maxdepth 1 -type d -name 'chaos-cycle-*' | wc -l | tr -d ' ')"
+retained_restart_dirs="$(find "${out_dir}/runs" -mindepth 1 -maxdepth 1 -type d -name 'restart-cycle-*' | wc -l | tr -d ' ')"
+
 {
-  echo "config=${config_path}"
-  echo "duration_minutes=${duration_minutes}"
+  echo "schema_version=1"
+  echo "summary_kind=reliability_soak"
+  echo "started_at_utc=${started_at_utc}"
+  echo "finished_at_utc=${finished_at_utc}"
   echo "elapsed_seconds=${elapsed_seconds}"
+  echo "status=${overall_status}"
+  echo "config=${config_path}"
+  echo "out_dir=${out_dir}"
+  echo "retention_policy=cycle_runs:max=${run_retention_keep}"
+  echo "run_retention_keep=${run_retention_keep}"
+  echo "retained_chaos_dirs=${retained_chaos_dirs}"
+  echo "retained_restart_dirs=${retained_restart_dirs}"
+  echo "chaos_metrics_csv=$(basename "${chaos_metrics_csv}")"
+  echo "restart_metrics_csv=$(basename "${restart_metrics_csv}")"
+  echo "timeline_log=$(basename "${timeline_log}")"
+  echo "duration_minutes=${duration_minutes}"
   echo "clients=${clients}"
   echo "chaos_seconds=${chaos_seconds}"
   echo "restart_phase_seconds=${restart_phase_seconds}"
@@ -163,7 +206,6 @@ fi
   echo "restart_runs=${restart_count}"
   echo "restart_pass=${restart_pass}"
   echo "restart_fail=${restart_fail}"
-  echo "status=${overall_status}"
   echo
   echo "chaos_trends:"
   awk -F',' '

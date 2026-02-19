@@ -27,6 +27,18 @@ if [[ ! -f "${summary}" ]]; then
   exit 1
 fi
 
+if ! grep -q '^schema_version=1$' "${summary}"; then
+  echo "Chaos summary missing schema_version=1" >&2
+  cat "${summary}"
+  exit 1
+fi
+
+if ! grep -q '^summary_kind=reliability_chaos$' "${summary}"; then
+  echo "Chaos summary missing summary_kind" >&2
+  cat "${summary}"
+  exit 1
+fi
+
 if ! grep -q '^status=pass$' "${summary}"; then
   echo "Chaos drill failed" >&2
   cat "${summary}"

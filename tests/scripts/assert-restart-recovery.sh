@@ -23,6 +23,18 @@ if [[ ! -f "${summary}" ]]; then
   exit 1
 fi
 
+if ! grep -q '^schema_version=1$' "${summary}"; then
+  echo "Restart recovery summary missing schema_version=1" >&2
+  cat "${summary}"
+  exit 1
+fi
+
+if ! grep -q '^summary_kind=reliability_restart_recovery$' "${summary}"; then
+  echo "Restart recovery summary missing summary_kind" >&2
+  cat "${summary}"
+  exit 1
+fi
+
 if ! grep -q '^status=pass$' "${summary}"; then
   echo "Restart recovery drill failed" >&2
   cat "${summary}"
