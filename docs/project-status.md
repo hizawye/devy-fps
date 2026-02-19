@@ -1036,3 +1036,63 @@
   - None.
 - Next immediate starting point:
   - Run server/client in separate terminals with `config/server_test.json`.
+
+## World Expansion Hardening Update (2026-02-19)
+- Current progress:
+  - Verified full debug-vcpkg gate with `scripts/test.sh debug` (`19/19` tests passed).
+  - Re-ran explicit release-hardening drills with isolated config `/tmp/devy-server-test-27777.json`:
+    - `scripts/smoke-server.sh /tmp/devy-server-test-27777.json 2` (pass)
+    - `scripts/chaos-drill.sh /tmp/devy-server-test-27777.json 8 8 artifacts/reliability/chaos/world-expansion-hardening-port27777 30 1200 mixed 3` (pass)
+    - `scripts/restart-recovery.sh /tmp/devy-server-test-27777.json 6 4 artifacts/reliability/restart-recovery/world-expansion-hardening-port27777` (pass)
+  - Confirmed config/template consistency for world expansion knobs via `jq` across:
+    - `config/server.json`,
+    - `config/server_test.json`,
+    - `config/server_120.json`,
+    - `config/server_diagnostics_alert.json`,
+    - `config/templates/server_canary.json`,
+    - `config/templates/server_release_candidate.json`.
+- Environment note:
+  - Local shared port `17777` was occupied by an external long-running load test in another worktree; hardening runs were moved to port `27777` to avoid false-negative bind failures.
+- Blockers/Bugs:
+  - None in this worktree after port isolation.
+- Next immediate starting point:
+  - Optional follow-up hardening: extend `tools/devy_load_client.cpp` to assert `join_accept.payload.world_gen` presence/shape directly at runtime.
+
+## World Generation Join-Contract Update (2026-02-19)
+- Current progress:
+  - Implemented runtime `join_accept.payload.world_gen` validation in `tools/devy_load_client.cpp` using `devy::voxel::world_generation_profile_from_json(...)`.
+  - Load-client joins now require both a valid `player_id` and a valid `world_gen` payload; missing/invalid `world_gen` now forces non-zero process exit.
+  - Added explicit load-client summary counters:
+    - `join_accept_world_gen_valid`,
+    - `join_accept_world_gen_missing`,
+    - `join_accept_world_gen_invalid`.
+  - Rebuilt and validated on isolated config `/tmp/devy-server-test-27777.json`:
+    - `scripts/smoke-server.sh /tmp/devy-server-test-27777.json 2` (pass),
+    - `scripts/profile-load.sh /tmp/devy-server-test-27777.json 4 4 artifacts/telemetry/world-gen-assert-smoke` (pass),
+    - `scripts/chaos-drill.sh /tmp/devy-server-test-27777.json 6 4 artifacts/reliability/chaos/world-gen-assert-port27777 18 1000 mixed 2` (pass),
+    - `scripts/protocol-compat-check.sh /tmp/devy-server-test-27777.json 4 4 artifacts/releases/protocol-compat/world-gen-assert-port27777 12 2` (pass).
+  - Hardened reliability CTest wrappers to honor `DEVY_TEST_CONFIG_PATH`:
+    - `tests/scripts/assert-watchdog-restart.sh`,
+    - `tests/scripts/assert-chaos-drill.sh`,
+    - `tests/scripts/assert-restart-recovery.sh`,
+    - `tests/scripts/assert-reliability-soak.sh`.
+  - Verified full gate in isolated-port mode:
+    - `DEVY_TEST_CONFIG_PATH=/tmp/devy-server-test-27777.json scripts/test.sh debug` (`19/19` tests passed).
+- Blockers/Bugs:
+  - None.
+- Next immediate starting point:
+  - Merge-ready for world-expansion hardening scope.
+
+## Alpha Release Cut Update (2026-02-19)
+- Current progress:
+  - Generated final release notes at `docs/releases/v0.2.0-alpha-notes.md` from `v0.2.0-alpha-baseline..HEAD`.
+  - Executed `scripts/alpha-release-gate.sh v0.2.0-alpha config/server_test.json debug-vcpkg 8 8 480 artifacts/releases/alpha-gate/v0.2.0-alpha-final-20260219-160431 0 v0.2.0-alpha-baseline`.
+  - Gate summary (`artifacts/releases/alpha-gate/v0.2.0-alpha-final-20260219-160431/summary.txt`):
+    - `status=pass`, `acceptance_status=pass`, `endurance_status=skipped`, `release_notes_status=pass`, `missing_required_docs=0`.
+  - Executed standalone acceptance confirmation `DEVY_SKIP_BUILD=1 scripts/alpha-acceptance-pack.sh config/server_test.json artifacts/releases/alpha-acceptance/v0.2.0-alpha-final-20260219-160601 debug-vcpkg 8 8 1`.
+  - Acceptance summary (`artifacts/releases/alpha-acceptance/v0.2.0-alpha-final-20260219-160601/summary.txt`):
+    - `status=pass`, `regression_status=pass`, `profile_load_status=pass`, `chaos_drill_status=pass`, `restart_recovery_status=pass`.
+- Blockers/Bugs:
+  - None known locally for release cut.
+- Next immediate starting point:
+  - Create `chore(release): v0.2.0-alpha` commit + annotated tag, push `main` and tag, then verify required GitHub checks.

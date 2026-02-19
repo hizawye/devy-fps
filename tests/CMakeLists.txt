@@ -7,6 +7,7 @@ add_executable(shared_unit_tests
   shared/ProtocolTests.cpp
   shared/RuntimeServerInfoTests.cpp
   shared/WorldTests.cpp
+  shared/WorldGenerationProfileTests.cpp
   shared/WeaponsTests.cpp
 )
 

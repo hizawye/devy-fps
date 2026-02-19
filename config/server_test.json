@@ -9,7 +9,23 @@
     "chunk_size": 32,
     "world_height": 64,
     "preview_chunks": 2,
-    "draw_distance_chunks": 2
+    "draw_distance_chunks": 2,
+    "world_seed": 1337,
+    "world_expansion": {
+      "enabled": true,
+      "poi_density": "medium",
+      "placement": {
+        "cell_size_chunks": 4,
+        "jitter_units": 24,
+        "min_poi_spacing_units": 96
+      },
+      "poi_types": {
+        "outpost": true,
+        "ruins": true,
+        "loot_shrine": true
+      },
+      "loot_bias_multiplier": 1.25
+    }
   },
   "max_players": 8,
   "session": {

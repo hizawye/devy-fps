@@ -662,12 +662,55 @@ int main(int argc, char** argv) {
   int map_chunks_z = 64;
   int map_world_height = 256;
   int map_draw_distance_chunks = 2;
+  devy::voxel::WorldGenerationProfile world_generation_profile{};
   if (config.contains("map") && config["map"].is_object()) {
-    map_chunks_x = config["map"].value("chunks_x", map_chunks_x);
-    map_chunks_z = config["map"].value("chunks_z", map_chunks_z);
-    map_world_height = config["map"].value("world_height", map_world_height);
+    const auto& map_config = config["map"];
+    map_chunks_x = map_config.value("chunks_x", map_chunks_x);
+    map_chunks_z = map_config.value("chunks_z", map_chunks_z);
+    map_world_height = map_config.value("world_height", map_world_height);
     map_draw_distance_chunks =
-        config["map"].value("draw_distance_chunks", map_draw_distance_chunks);
+        map_config.value("draw_distance_chunks", map_draw_distance_chunks);
+
+    if (const auto parsed_world_seed = json_to_u32(map_config.value("world_seed", nlohmann::json{}));
+        parsed_world_seed.has_value()) {
+      world_generation_profile.world_seed = parsed_world_seed.value();
+    }
+    if (map_config.contains("world_expansion") && map_config["world_expansion"].is_object()) {
+      const auto& expansion = map_config["world_expansion"];
+      world_generation_profile.expansion.enabled =
+          expansion.value("enabled", world_generation_profile.expansion.enabled);
+
+      if (expansion.contains("poi_density") && expansion["poi_density"].is_string()) {
+        const auto parsed_poi_density =
+            devy::voxel::parse_poi_density(expansion["poi_density"].get<std::string>());
+        if (parsed_poi_density.has_value()) {
+          world_generation_profile.expansion.poi_density = parsed_poi_density.value();
+        }
+      }
+
+      if (expansion.contains("placement") && expansion["placement"].is_object()) {
+        const auto& placement = expansion["placement"];
+        world_generation_profile.expansion.cell_size_chunks =
+            placement.value("cell_size_chunks", world_generation_profile.expansion.cell_size_chunks);
+        world_generation_profile.expansion.jitter_units =
+            placement.value("jitter_units", world_generation_profile.expansion.jitter_units);
+        world_generation_profile.expansion.min_poi_spacing_units = placement.value(
+            "min_poi_spacing_units", world_generation_profile.expansion.min_poi_spacing_units);
+      }
+
+      if (expansion.contains("poi_types") && expansion["poi_types"].is_object()) {
+        const auto& poi_types = expansion["poi_types"];
+        world_generation_profile.expansion.poi_types.outpost =
+            poi_types.value("outpost", world_generation_profile.expansion.poi_types.outpost);
+        world_generation_profile.expansion.poi_types.ruins =
+            poi_types.value("ruins", world_generation_profile.expansion.poi_types.ruins);
+        world_generation_profile.expansion.poi_types.loot_shrine = poi_types.value(
+            "loot_shrine", world_generation_profile.expansion.poi_types.loot_shrine);
+      }
+
+      world_generation_profile.expansion.loot_bias_multiplier = expansion.value(
+          "loot_bias_multiplier", world_generation_profile.expansion.loot_bias_multiplier);
+    }
   }
   if (map_chunks_x <= 0) {
     devy::log::write(devy::log::Level::Warn, "Invalid map.chunks_x; using 64.");
@@ -689,6 +732,10 @@ int main(int argc, char** argv) {
   if (map_chunks_y <= 0) {
     map_chunks_y = 1;
   }
+  world_generation_profile =
+      devy::voxel::sanitize_world_generation_profile(world_generation_profile);
+  const nlohmann::json world_generation_payload =
+      devy::voxel::world_generation_profile_to_json(world_generation_profile);
 
   const std::size_t world_chunks_x = static_cast<std::size_t>(std::max(0, map_chunks_x));
   const std::size_t world_chunks_z = static_cast<std::size_t>(std::max(0, map_chunks_z));
@@ -705,7 +752,7 @@ int main(int argc, char** argv) {
   const auto world_generation_started = std::chrono::steady_clock::now();
   int progress_bucket = -1;
   world.generate(
-      map_chunks_x, map_chunks_z, map_world_height,
+      map_chunks_x, map_chunks_z, map_world_height, world_generation_profile,
       [&](std::size_t generated_chunks, std::size_t total_chunks) {
         if (total_chunks == 0U) {
           if (progress_bucket < 0) {
@@ -893,6 +940,17 @@ int main(int argc, char** argv) {
   devy::log::write(devy::log::Level::Info, "World replication interest radius: " +
                                                std::to_string(map_draw_distance_chunks) +
                                                " chunk(s).");
+  devy::log::write(
+      devy::log::Level::Info,
+      "World generation: seed=" + std::to_string(world_generation_profile.world_seed) +
+          ", expansion=" +
+          std::string(world_generation_profile.expansion.enabled ? "enabled" : "disabled") +
+          ", poi_density=" + devy::voxel::to_string(world_generation_profile.expansion.poi_density) +
+          ", cell_size_chunks=" +
+          std::to_string(world_generation_profile.expansion.cell_size_chunks) +
+          ", jitter_units=" + std::to_string(world_generation_profile.expansion.jitter_units) +
+          ", min_poi_spacing_units=" +
+          std::to_string(world_generation_profile.expansion.min_poi_spacing_units) + ".");
   devy::log::write(devy::log::Level::Info, "Block interaction valid block ids: " +
                                                std::to_string(valid_block_ids.size()) + ".");
   devy::log::write(devy::log::Level::Info, "Combat weapon definitions loaded: " +
@@ -1051,6 +1109,7 @@ int main(int argc, char** argv) {
                                          "block_interaction_v1", "weapon_fire_v1",
                                          "damage_pipeline_v1", "death_event_v1",
                                          "inventory_loot_v1", "match_lifecycle_v1"})},
+                 {"world_gen", world_generation_payload},
                  {"accepted", true},
                  {"player_id", join_result.session.player_id},
                  {"player_name", join_result.session.player_name},
@@ -1083,6 +1142,7 @@ int main(int argc, char** argv) {
                                          "block_interaction_v1", "weapon_fire_v1",
                                          "damage_pipeline_v1", "death_event_v1",
                                          "inventory_loot_v1", "match_lifecycle_v1"})},
+                 {"world_gen", world_generation_payload},
                  {"accepted", false},
                  {"reason", devy::server::to_string(join_result.error)}}};
             send_packet(event.peer, response, telemetry);

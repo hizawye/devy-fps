@@ -7,12 +7,13 @@ if [[ "$#" -lt 1 ]]; then
 fi
 
 repo_root="$1"
+config_path="${DEVY_TEST_CONFIG_PATH:-${repo_root}/config/server_test.json}"
 out_dir="${repo_root}/artifacts/reliability/ctest-watchdog"
 rm -rf "${out_dir}"
 
 DEVY_WATCHDOG_KILL_FIRST_AFTER_SECONDS=1 \
   "${repo_root}/scripts/watchdog-server.sh" \
-  "${repo_root}/config/server_test.json" \
+  "${config_path}" \
   2 \
   2 \
   0.1 \

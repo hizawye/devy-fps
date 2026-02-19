@@ -4,6 +4,7 @@ add_library(shared
   src/RuntimeServerInfo.cpp
   src/net/Protocol.cpp
   src/voxel/Chunk.cpp
+  src/voxel/WorldGenerationProfile.cpp
   src/voxel/World.cpp
   src/game/Weapons.cpp
   src/game/Treasure.cpp

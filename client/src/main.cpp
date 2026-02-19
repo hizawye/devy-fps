@@ -261,10 +261,52 @@ int main(int argc, char** argv) {
 
   int world_height = 256;
   int draw_distance_chunks = 8;
+  devy::voxel::WorldGenerationProfile world_generation_profile{};
   if (server_config.contains("map") && server_config["map"].is_object()) {
-    world_height = server_config["map"].value("world_height", world_height);
+    const auto& map_config = server_config["map"];
+    world_height = map_config.value("world_height", world_height);
     draw_distance_chunks =
-        server_config["map"].value("draw_distance_chunks", draw_distance_chunks);
+        map_config.value("draw_distance_chunks", draw_distance_chunks);
+
+    if (const auto parsed_world_seed = json_to_u32(map_config.value("world_seed", nlohmann::json{}));
+        parsed_world_seed.has_value()) {
+      world_generation_profile.world_seed = parsed_world_seed.value();
+    }
+    if (map_config.contains("world_expansion") && map_config["world_expansion"].is_object()) {
+      const auto& expansion = map_config["world_expansion"];
+      world_generation_profile.expansion.enabled =
+          expansion.value("enabled", world_generation_profile.expansion.enabled);
+
+      if (expansion.contains("poi_density") && expansion["poi_density"].is_string()) {
+        const auto parsed_poi_density =
+            devy::voxel::parse_poi_density(expansion["poi_density"].get<std::string>());
+        if (parsed_poi_density.has_value()) {
+          world_generation_profile.expansion.poi_density = parsed_poi_density.value();
+        }
+      }
+
+      if (expansion.contains("placement") && expansion["placement"].is_object()) {
+        const auto& placement = expansion["placement"];
+        world_generation_profile.expansion.cell_size_chunks =
+            placement.value("cell_size_chunks", world_generation_profile.expansion.cell_size_chunks);
+        world_generation_profile.expansion.jitter_units =
+            placement.value("jitter_units", world_generation_profile.expansion.jitter_units);
+        world_generation_profile.expansion.min_poi_spacing_units = placement.value(
+            "min_poi_spacing_units", world_generation_profile.expansion.min_poi_spacing_units);
+      }
+
+      if (expansion.contains("poi_types") && expansion["poi_types"].is_object()) {
+        const auto& poi_types = expansion["poi_types"];
+        world_generation_profile.expansion.poi_types.outpost =
+            poi_types.value("outpost", world_generation_profile.expansion.poi_types.outpost);
+        world_generation_profile.expansion.poi_types.ruins =
+            poi_types.value("ruins", world_generation_profile.expansion.poi_types.ruins);
+        world_generation_profile.expansion.poi_types.loot_shrine = poi_types.value(
+            "loot_shrine", world_generation_profile.expansion.poi_types.loot_shrine);
+      }
+      world_generation_profile.expansion.loot_bias_multiplier = expansion.value(
+          "loot_bias_multiplier", world_generation_profile.expansion.loot_bias_multiplier);
+    }
   }
   if (world_height <= 0) {
     world_height = 256;
@@ -364,6 +406,9 @@ int main(int argc, char** argv) {
   }
 
   devy::voxel::World world{};
+  world_generation_profile =
+      devy::voxel::sanitize_world_generation_profile(world_generation_profile);
+  world.set_generation_profile(world_generation_profile);
   devy::engine::Camera camera{};
   camera.set_sensitivity(camera_sensitivity);
   camera.set_fov_degrees(base_fov_degrees);
@@ -489,6 +534,20 @@ int main(int argc, char** argv) {
           weapon_fire_emitter.reset();
           known_spawns.clear();
           chunk_revisions.clear();
+          if (parsed.packet.payload.contains("world_gen")) {
+            const auto parsed_profile =
+                devy::voxel::world_generation_profile_from_json(parsed.packet.payload["world_gen"]);
+            if (parsed_profile.has_value()) {
+              world_generation_profile = parsed_profile.value();
+            } else {
+              devy::log::write(
+                  Level::Warn,
+                  "Join accept contained invalid world_gen payload; using local defaults.");
+            }
+          }
+          world_generation_profile =
+              devy::voxel::sanitize_world_generation_profile(world_generation_profile);
+          world.set_generation_profile(world_generation_profile);
           world.clear();
           renderer.clear();
           smoothed_eye_y = 2.0F;
