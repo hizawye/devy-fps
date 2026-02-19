@@ -469,3 +469,126 @@
   - `artifacts/releases/alpha-gate/v0.2.0-alpha-final-20260219-160431/summary.txt`.
 - Ran standalone alpha acceptance confirmation and received `status=pass`:
   - `artifacts/releases/alpha-acceptance/v0.2.0-alpha-final-20260219-160601/summary.txt`.
+- Published alpha release tag and verification state:
+  - commit/tag: `dd31782` + `v0.2.0-alpha`,
+  - checks: CI `22187437854` (`success`), Reliability `22187438005` (`success`).
+- Added post-alpha beta planning artifact:
+  - `docs/releases/v0.3.0-beta-plan.md`.
+- Synced docs for post-alpha direction:
+  - `docs/project-status.md`,
+  - `docs/decision-log.md`,
+  - `docs/architecture.md`,
+  - `docs/releases/README.md`.
+- Added beta release-gate automation and release-lane test coverage:
+  - new script `scripts/beta-release-gate.sh`,
+  - new test assertion `tests/scripts/assert-beta-release-gate.sh`,
+  - new CTest entry `server.release.beta_gate` in `tests/CMakeLists.txt`.
+- Updated release-ops command/index docs for the beta gate:
+  - `README.md` now includes `scripts/beta-release-gate.sh`,
+  - `README.md` release CTest list now includes `server.release.beta_gate`.
+- Validated new beta gate target in isolation:
+  - `ctest --preset debug-vcpkg -R '^server\\.release\\.beta_gate$'` passed.
+- Recorded current full release-lane state during verification:
+  - `ctest --preset debug-vcpkg -R '^server\\.release\\.'` currently fails on pre-existing release checks
+    (`install_smoke`, `protocol_upgrade_downgrade`, `alpha_endurance_short`, `release_notes_generation` timeout),
+    which also causes beta-gate regression mode to fail in that full-lane run.
+- Calibrated default runtime telemetry alert thresholds for beta signal quality:
+  - `config/server.json` and `config/server_test.json` now use:
+    - `max_tick_lag_rate=0.10`,
+    - `max_packet_drop_rate=0.20`,
+    - `max_parse_error_rate=0.10`,
+    - `min_active_players=0` unchanged.
+- Expanded runtime telemetry regression coverage:
+  - `tests/server/RuntimeTelemetryTests.cpp` now includes a calibrated-threshold test that asserts:
+    - below-threshold windows remain alert-free,
+    - sustained above-threshold windows emit tick/drop/parse alerts.
+- Validated B3.1 telemetry scope locally:
+  - `ctest --preset debug-vcpkg -R '^(server\\.telemetry\\.alert_dry_run|server\\.unit)$'` passed.
+- Tuned B1.1 weapon balance defaults in `config/weapons.json`:
+  - pistol (`20`, `3.4`), rifle (`24`, `4.0`), shotgun (`8x9`), railgun (`85`, `0.8`).
+- Updated B1.1 deterministic combat/unit expectations:
+  - `tests/shared/WeaponsTests.cpp`,
+  - `tests/server/CombatSimulationTests.cpp`.
+- Tuned B1.2 loot economy and inventory pressure:
+  - `config/treasure.json` high-tier value/weight rebalance,
+  - `config/server.json` and `config/server_test.json` inventory pacing/capacity defaults (`spawn_interval_ticks`, `max_active_spawns`, `pickup_radius_units`, `max_items_per_player`, `max_weight_per_player`).
+- Added B1.2 inventory pressure regression:
+  - `tests/server/InventoryLootSimulationTests.cpp` now validates deterministic `WeightLimitExceeded` behavior.
+- Tuned B1.3 lifecycle defaults for faster beta turnover:
+  - `config/server.json`: pre-match `3s`, duration `1800s`, respawn delay `2s`, `match_time_minutes=30`,
+  - `config/server_120.json`: pre-match `3s`, respawn delay `2s`.
+- Updated B1.3 lifecycle timing assertions:
+  - `tests/server/MatchLifecycleSimulationTests.cpp`.
+- Validated combined gameplay/lifecycle scopes locally:
+  - `ctest --preset debug-vcpkg -R '^server\\.unit$'` passed,
+  - `ctest --preset debug-vcpkg -R '^(shared\\.unit|server\\.unit)$'` passed.
+- Added authoritative HUD runtime model for interactive client visibility:
+  - `client/include/client/AuthoritativeHudModel.h`,
+  - `client/src/AuthoritativeHudModel.cpp`.
+- Integrated HUD model into interactive client network flow:
+  - `client/src/main.cpp` now applies authoritative HUD updates from snapshot/inventory/match/damage packets,
+  - window title now renders live HUD context (health/alive, weapon + `last_shot_seq`, coins/items, match phase/time).
+- Added B2.1 client regression coverage:
+  - `tests/client/AuthoritativeHudModelTests.cpp`,
+  - `tests/CMakeLists.txt` updated to include new HUD tests in `client.unit`.
+- Validated B2.1 scope locally:
+  - `ctest --preset debug-vcpkg -R '^(client\\.unit|server\\.smoke)$'` passed with
+    `DEVY_TEST_CONFIG_PATH=/home/nagara/dev/devy-fps/artifacts/tmp/server_test_port18777.json`.
+- Added authoritative event feedback runtime model for interactive client messaging:
+  - `client/include/client/AuthoritativeEventFeed.h`,
+  - `client/src/AuthoritativeEventFeed.cpp`.
+- Integrated event feed into interactive client network flow:
+  - `client/src/main.cpp` now consumes snapshot `events[]` plus reliable `damage_event`/`match_state`,
+  - deduplicates duplicate reliable/snapshot damage confirmations and emits transient player-facing event banners in the SDL window title.
+- Added B2.2 client regression coverage:
+  - `tests/client/AuthoritativeEventFeedTests.cpp`,
+  - `tests/CMakeLists.txt` updated to include new event-feed tests in `client.unit`.
+- Validated B2.2 scope locally:
+  - `ctest --preset debug-vcpkg -R '^(client\\.unit|shared\\.unit)$' --output-on-failure` passed.
+- Normalized reliability script summary schema for beta gate parsing:
+  - `scripts/watchdog-server.sh`,
+  - `scripts/chaos-drill.sh`,
+  - `scripts/restart-recovery.sh`,
+  - `scripts/reliability-soak.sh`.
+- Reliability summaries now include shared headers:
+  - `schema_version=1`,
+  - `summary_kind=...`,
+  - `status=pass|fail`,
+  - run timing/output metadata (`started_at_utc`, `finished_at_utc`, `elapsed_seconds`, `out_dir`).
+- Added bounded retention for soak cycle artifacts:
+  - `scripts/reliability-soak.sh` now accepts optional `[run-retention-keep]` and prunes old `runs/chaos-cycle-*` / `runs/restart-cycle-*`.
+- Added watchdog run attempt metrics output:
+  - `scripts/watchdog-server.sh` now emits `attempt-metrics.csv` and references it from `summary.txt`.
+- Hardened reliability CTest assertions to enforce normalized summary shape:
+  - `tests/scripts/assert-watchdog-restart.sh`,
+  - `tests/scripts/assert-chaos-drill.sh`,
+  - `tests/scripts/assert-restart-recovery.sh`,
+  - `tests/scripts/assert-reliability-soak.sh`.
+- Updated script signature/docs for soak retention option:
+  - `README.md`,
+  - `docs/tech-stack.md`,
+  - `docs/architecture.md`.
+- Validated B3.2 reliability scope locally:
+  - `ctest --preset debug-vcpkg -R '^server\\.reliability\\.' --output-on-failure` passed (`4/4`).
+- Added beta release docs/checklists for operator handoff:
+  - `docs/releases/beta-acceptance-checklist.md`,
+  - `docs/releases/beta-known-issues.md`,
+  - `docs/releases/beta-release-tag-flow.md`.
+- Updated release docs index to include beta release artifacts:
+  - `docs/releases/README.md`.
+- Hardened beta gate required-doc enforcement:
+  - `scripts/beta-release-gate.sh` now requires beta checklist/known-issues/tag-flow docs.
+- Hardened beta-gate CTest assertions:
+  - `tests/scripts/assert-beta-release-gate.sh` now checks `missing_required_docs=0`.
+- Validated B4.2 scope locally:
+  - `ctest --preset debug-vcpkg -R '^server\\.release\\.beta_gate$' --output-on-failure` passed (`1/1`).
+- Ran beta candidate release/reliability gate sweep sequentially:
+  - `ctest --preset debug-vcpkg -R '^server\\.reliability\\.' --output-on-failure` passed (`4/4`),
+  - `ctest --preset debug-vcpkg -R '^server\\.release\\.' --output-on-failure` passed (`7/7`).
+- Recorded local gate-orchestration constraint:
+  - release and reliability lanes contend for shared runtime resources when run in parallel; sequential execution is required for stable local results.
+- Ran documented beta gate dry-run and captured pass evidence:
+  - `scripts/beta-release-gate.sh v0.3.0-beta-candidate ... artifacts/releases/beta-gate/b4.2-dry-run 0 v0.2.0-alpha`,
+  - `artifacts/releases/beta-gate/b4.2-dry-run/summary.txt` (`status=pass`, `missing_required_docs=0`).
+- Generated beta candidate release notes artifact:
+  - `docs/releases/v0.3.0-beta-candidate-notes.md`.

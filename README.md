@@ -77,6 +77,7 @@ When the client is launched with the same config, it reads that file and connect
   - alpha endurance evidence runner (8h target): `scripts/alpha-endurance-run.sh [config-path] [minutes] [clients] [out-dir] [chaos-seconds] [restart-phase-seconds] [restart-every-cycles]`
   - alpha endurance status helper (live/summary view): `scripts/alpha-endurance-status.sh [out-dir]`
   - alpha release gate orchestrator: `scripts/alpha-release-gate.sh [version-tag] [config-path] [preset] [clients] [scenario-seconds] [endurance-minutes] [out-dir] [run-endurance(0|1)] [from-ref]`
+  - beta release gate orchestrator: `scripts/beta-release-gate.sh [version-tag] [config-path] [preset] [clients] [scenario-seconds] [endurance-minutes] [out-dir] [run-endurance(0|1)] [from-ref]`
   - post-endurance alpha follow-up orchestrator (wait + default-port acceptance + gate): `scripts/alpha-post-endurance-followup.sh [endurance-out-dir] [version-tag] [config-path] [preset] [clients] [scenario-seconds] [endurance-minutes] [from-ref] [poll-seconds] [out-dir] [run-gate-endurance(0|1)]`
   - final release automation (wait follow-up + release notes + release commit/tag): `scripts/alpha-finalize-release.sh [followup-out-dir] [version-tag] [from-ref] [poll-seconds] [out-dir] [create-tag(0|1)]`
   - set `DEVY_SKIP_BUILD=1` to package from an already-built preset without rebuilding.
@@ -84,7 +85,7 @@ When the client is launched with the same config, it reads that file and connect
   - watchdog restart loop: `scripts/watchdog-server.sh [config-path] [run-seconds] [max-restarts] [backoff-seconds] [out-dir] [rotation-keep]`
   - malformed/flood + disconnect churn: `scripts/chaos-drill.sh [config-path] [clients] [seconds] [out-dir] [malformed-rate-hz] [disconnect-interval-ms] [malformed-family] [malformed-burst-size]`
   - forced restart recovery: `scripts/restart-recovery.sh [config-path] [clients] [phase-seconds] [out-dir]`
-  - longer-duration reliability soak runner (chaos + restart loops + trend summary): `scripts/reliability-soak.sh [config-path] [minutes] [clients] [out-dir] [chaos-seconds] [restart-phase-seconds] [restart-every-cycles]`
+  - longer-duration reliability soak runner (chaos + restart loops + trend summary): `scripts/reliability-soak.sh [config-path] [minutes] [clients] [out-dir] [chaos-seconds] [restart-phase-seconds] [restart-every-cycles] [run-retention-keep]`
 
 ## CI/CD (Current)
 - `.github/workflows/ci.yml`:
@@ -107,11 +108,14 @@ When the client is launched with the same config, it reads that file and connect
   - `server.release.rollback_rehearsal`
   - `server.release.alpha_acceptance_pack`
   - `server.release.alpha_endurance_short`
+  - `server.release.beta_gate`
 - Alpha gate docs:
   - `docs/releases/alpha-bug-bash-checklist.md`
   - `docs/releases/alpha-known-issues.md`
   - `docs/releases/alpha-acceptance-checklist.md`
   - `docs/releases/alpha-release-tag-flow.md`
+- Post-alpha beta plan:
+  - `docs/releases/v0.3.0-beta-plan.md`
 
 ## Networking Handshake (Current)
 - Server admission now requires a valid `join_request` packet; raw ENet connect does not auto-admit a player.
@@ -191,3 +195,4 @@ When the client is launched with the same config, it reads that file and connect
 
 ## Notes
 - Terrain collision is heightmap-based (no caves yet).
+- `.worktrees/` is treated as local-only workspace state and should remain untracked for release/docs commits.

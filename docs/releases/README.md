@@ -13,3 +13,11 @@ Alpha release-gate docs:
 - `docs/releases/alpha-known-issues.md`
 - `docs/releases/alpha-acceptance-checklist.md`
 - `docs/releases/alpha-release-tag-flow.md`
+
+Beta release-gate docs:
+- `docs/releases/beta-known-issues.md`
+- `docs/releases/beta-acceptance-checklist.md`
+- `docs/releases/beta-release-tag-flow.md`
+
+Post-alpha planning docs:
+- `docs/releases/v0.3.0-beta-plan.md`

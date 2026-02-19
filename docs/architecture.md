@@ -5,6 +5,7 @@
 - `engine/`: rendering/input/physics application layer used by the client executable.
 - `client/`: interactive FPS client loop + world preview generation + `client_runtime` modules:
   - `PredictionReconciler`: local input sequencing/prediction and authoritative snapshot reconciliation from `last_processed_input_seq`.
+  - `AuthoritativeHudModel`: client-side aggregation of authoritative HUD values (health/alive/combat seq, inventory totals, match phase/timer) from replicated server packets.
 - `tools/`:
   - `devy_load_client`: synthetic ENet load generator with optional chaos controls (`--malformed-rate-hz`, `--malformed-family`, `--malformed-burst-size`, disconnect/reconnect churn flags).
 - `server/`: authoritative ENet host + `server_runtime` modules:
@@ -22,7 +23,7 @@
 - Top-level CMake configures `shared`, `engine`, `client`, `server`.
 - `BUILD_TESTING=ON` adds `tests/`:
   - `shared.unit`: Catch2 suite for core shared logic.
-  - `client.unit`: Catch2 suite for prediction/reconciliation behavior (`PredictionReconciler`) including latency/loss simulation matrix.
+  - `client.unit`: Catch2 suite for client runtime behavior (`PredictionReconciler`, `AuthoritativeHudModel`, and chunk/fire helpers) including latency/loss simulation matrix.
   - `server.unit`: Catch2 suite for server runtime behavior (`SessionManager`, `AuthoritativeLoop`, `MovementSimulation`, `BlockInteraction`, `CombatSimulation`, `InventoryLootSimulation`, `MatchLifecycleSimulation`).
   - `server.smoke`: launches server in timed headless mode and asserts clean exit.
   - `server.config.invalid_*`: CTest integration checks that invalid configs (schema/range and malformed JSON) are rejected at boot with non-zero exit and actionable error logs.
@@ -69,6 +70,8 @@
   - `scripts/chaos-drill.sh`: malformed packet flood + disconnect churn scenario driver with malformed family/burst controls and error-category coverage assertions.
   - `scripts/restart-recovery.sh`: pre-restart/post-restart load scenario driver with pass/fail summary.
   - `scripts/reliability-soak.sh`: multi-cycle reliability soak orchestrator (watchdog precheck + rotating chaos scenarios + periodic restart recovery + trend summaries).
+  - All reliability scripts emit normalized machine-readable summary headers (`schema_version=1`, `summary_kind=...`, `status=pass|fail`) under each run `summary.txt` to support consistent beta-gate parsing.
+  - Soak runner now enforces bounded cycle artifact retention (`run_retention_keep`) for `runs/chaos-cycle-*` and `runs/restart-cycle-*`.
 - Release operations scripts:
   - `scripts/launch-profile.sh`: profile-driven server/client launch orchestration from `profiles/launch/*.env`.
   - `scripts/install-package-smoke.sh`: package extract + runtime smoke/install validation from packaged binaries.
@@ -145,3 +148,14 @@
     - peak state pressure estimates from active sessions, pending inputs/events, and active treasure spawns,
     - operational diagnostics (`tick lag`, inbound `drop/parse-error` rates, command rejection count, active-player averages),
     - machine-parseable summary stream lines (`Runtime diagnostics json=...`) with threshold-based `alerts` arrays.
+
+## v0.3.0-beta Direction (Post-alpha)
+- Beta target is documented in `docs/releases/v0.3.0-beta-plan.md`.
+- Protocol scope for beta stays on v1 compatibility (no protocol window change planned).
+- Architecture priorities for beta:
+  - preserve deterministic authoritative simulation and world replication behavior,
+  - improve interactive client clarity and feedback while keeping server authority unchanged,
+  - harden release and reliability operations around repeatable machine-readable evidence.
+- Operational baseline remains script-driven with artifacts under `artifacts/releases/`.
+- Workspace hygiene policy for beta:
+  - treat `.worktrees/` as local-only state and never include it in release/docs commits.

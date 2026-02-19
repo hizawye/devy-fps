@@ -32,7 +32,7 @@
 - `scripts/watchdog-server.sh [config-path] [run-seconds] [max-restarts] [backoff-seconds] [out-dir] [rotation-keep]`
 - `scripts/chaos-drill.sh [config-path] [clients] [seconds] [out-dir] [malformed-rate-hz] [disconnect-interval-ms] [malformed-family] [malformed-burst-size]`
 - `scripts/restart-recovery.sh [config-path] [clients] [phase-seconds] [out-dir]`
-- `scripts/reliability-soak.sh [config-path] [minutes] [clients] [out-dir] [chaos-seconds] [restart-phase-seconds] [restart-every-cycles]`
+- `scripts/reliability-soak.sh [config-path] [minutes] [clients] [out-dir] [chaos-seconds] [restart-phase-seconds] [restart-every-cycles] [run-retention-keep]`
 - `scripts/launch-profile.sh [profile] [server|client|both] [preset-or-bin-root]`
 - `scripts/generate-release-notes.sh [from-ref] [to-ref] [out-file]`
 - `scripts/install-package-smoke.sh [preset] [out-dir] [smoke-seconds] [clients] [load-seconds]`
