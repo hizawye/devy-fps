@@ -1,4 +1,5 @@
 #include "server/ServerConfigValidation.h"
+#include "shared/voxel/WorldGenerationProfile.h"
 
 #include <algorithm>
 #include <cctype>
@@ -323,6 +324,54 @@ std::vector<std::string> validate_server_config(const nlohmann::json& config) {
     validate_positive_integer(*map, "chunks_z", "map.chunks_z", errors);
     validate_positive_integer(*map, "world_height", "map.world_height", errors);
     validate_non_negative_integer(*map, "draw_distance_chunks", "map.draw_distance_chunks", errors);
+
+    const auto world_seed = read_integer_field(*map, "world_seed", "map.world_seed", errors);
+    if (world_seed.present && world_seed.valid &&
+        (world_seed.value < 0 ||
+         world_seed.value > static_cast<int64_t>(std::numeric_limits<uint32_t>::max()))) {
+      add_error(errors, "map.world_seed", "must be between 0 and 4294967295.");
+    }
+
+    if (const auto* world_expansion =
+            read_object_field(*map, "world_expansion", "map.world_expansion", errors);
+        world_expansion != nullptr) {
+      static_cast<void>(read_bool_field(*world_expansion, "enabled", "map.world_expansion.enabled",
+                                        errors));
+
+      const auto poi_density =
+          read_string_field(*world_expansion, "poi_density", "map.world_expansion.poi_density",
+                            errors);
+      if (poi_density.present && poi_density.valid &&
+          !devy::voxel::parse_poi_density(poi_density.value).has_value()) {
+        add_error(errors, "map.world_expansion.poi_density", "must be one of: low, medium, high.");
+      }
+
+      if (const auto* placement = read_object_field(*world_expansion, "placement",
+                                                    "map.world_expansion.placement", errors);
+          placement != nullptr) {
+        validate_positive_integer(*placement, "cell_size_chunks",
+                                  "map.world_expansion.placement.cell_size_chunks", errors);
+        validate_non_negative_integer(*placement, "jitter_units",
+                                      "map.world_expansion.placement.jitter_units", errors);
+        validate_non_negative_integer(
+            *placement, "min_poi_spacing_units",
+            "map.world_expansion.placement.min_poi_spacing_units", errors);
+      }
+
+      if (const auto* poi_types = read_object_field(*world_expansion, "poi_types",
+                                                    "map.world_expansion.poi_types", errors);
+          poi_types != nullptr) {
+        static_cast<void>(read_bool_field(*poi_types, "outpost",
+                                          "map.world_expansion.poi_types.outpost", errors));
+        static_cast<void>(read_bool_field(*poi_types, "ruins",
+                                          "map.world_expansion.poi_types.ruins", errors));
+        static_cast<void>(read_bool_field(*poi_types, "loot_shrine",
+                                          "map.world_expansion.poi_types.loot_shrine", errors));
+      }
+
+      validate_positive_number(*world_expansion, "loot_bias_multiplier",
+                               "map.world_expansion.loot_bias_multiplier", errors);
+    }
   }
 
   return errors;

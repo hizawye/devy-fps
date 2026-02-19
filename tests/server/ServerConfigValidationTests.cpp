@@ -11,7 +11,19 @@ TEST_CASE("Server config validation accepts empty object and valid optional fiel
       {"port", 7777},
       {"loot_drop", "none"},
       {"runtime", {{"tick_rate_hz", 30}, {"snapshot_interval_ticks", 2}}},
-      {"map", {{"chunks_x", 8}, {"chunks_z", 8}, {"world_height", 128}, {"draw_distance_chunks", 2}}}};
+      {"map",
+       {{"chunks_x", 8},
+        {"chunks_z", 8},
+        {"world_height", 128},
+        {"draw_distance_chunks", 2},
+        {"world_seed", 2026},
+        {"world_expansion",
+         {{"enabled", true},
+          {"poi_density", "medium"},
+          {"placement",
+           {{"cell_size_chunks", 4}, {"jitter_units", 24}, {"min_poi_spacing_units", 96}}},
+          {"poi_types", {{"outpost", true}, {"ruins", true}, {"loot_shrine", true}}},
+          {"loot_bias_multiplier", 1.25}}}}}};
 
   const auto errors = validate_server_config(config);
   REQUIRE(errors.empty());
@@ -51,6 +63,32 @@ TEST_CASE("Server config validation rejects invalid runtime ranges and enum stri
   REQUIRE(errors.at(4).find("match.duration_seconds") != std::string::npos);
   REQUIRE(errors.at(5).find("match.respawns_per_player") != std::string::npos);
   REQUIRE(errors.at(6).find("map.draw_distance_chunks") != std::string::npos);
+}
+
+TEST_CASE("Server config validation rejects invalid map world expansion fields") {
+  const nlohmann::json invalid = {
+      {"map",
+       {{"world_seed", -1},
+        {"world_expansion",
+         {{"enabled", "yes"},
+          {"poi_density", "very_dense"},
+          {"placement",
+           {{"cell_size_chunks", 0}, {"jitter_units", -2}, {"min_poi_spacing_units", -1}}},
+          {"poi_types", {{"outpost", "enabled"}, {"ruins", false}, {"loot_shrine", true}}},
+          {"loot_bias_multiplier", 0.0}}}}}};
+
+  const auto errors = validate_server_config(invalid);
+  REQUIRE(errors.size() == 8U);
+  REQUIRE(errors.at(0).find("map.world_seed") != std::string::npos);
+  REQUIRE(errors.at(1).find("map.world_expansion.enabled") != std::string::npos);
+  REQUIRE(errors.at(2).find("map.world_expansion.poi_density") != std::string::npos);
+  REQUIRE(errors.at(3).find("map.world_expansion.placement.cell_size_chunks") !=
+          std::string::npos);
+  REQUIRE(errors.at(4).find("map.world_expansion.placement.jitter_units") != std::string::npos);
+  REQUIRE(errors.at(5).find("map.world_expansion.placement.min_poi_spacing_units") !=
+          std::string::npos);
+  REQUIRE(errors.at(6).find("map.world_expansion.poi_types.outpost") != std::string::npos);
+  REQUIRE(errors.at(7).find("map.world_expansion.loot_bias_multiplier") != std::string::npos);
 }
 
 TEST_CASE("Server config validation rejects invalid profiling diagnostic thresholds") {

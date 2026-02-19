@@ -4,6 +4,7 @@ add_executable(shared_unit_tests
   shared/InventoryTests.cpp
   shared/MatchTests.cpp
   shared/ProtocolTests.cpp
+  shared/WorldGenerationProfileTests.cpp
   shared/WeaponsTests.cpp
 )
 

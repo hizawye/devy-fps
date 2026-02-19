@@ -1,6 +1,7 @@
 #pragma once
 
 #include "shared/voxel/Chunk.h"
+#include "shared/voxel/WorldGenerationProfile.h"
 
 #include <optional>
 #include <unordered_map>
@@ -33,6 +34,8 @@ public:
 
   void clear();
   void generate(int chunks_x, int chunks_z, int max_height);
+  void generate(int chunks_x, int chunks_z, int max_height,
+                const WorldGenerationProfile& generation_profile);
   Chunk& ensure_generated_chunk(int chunk_x, int chunk_y, int chunk_z, int max_height);
   bool remove_chunk(int chunk_x, int chunk_y, int chunk_z);
   int height_at(int world_x, int world_z) const;
@@ -41,10 +44,13 @@ public:
   std::optional<BlockId> block_at(int world_x, int world_y, int world_z) const;
   bool set_block(int world_x, int world_y, int world_z, BlockId id);
   const std::unordered_map<ChunkCoord, Chunk, ChunkCoordHash>& chunks() const;
+  void set_generation_profile(const WorldGenerationProfile& generation_profile);
+  const WorldGenerationProfile& generation_profile() const;
 
 private:
   std::unordered_map<ChunkCoord, Chunk, ChunkCoordHash> chunks_;
   int max_height_ = 0;
+  WorldGenerationProfile generation_profile_{};
 };
 
 } // namespace devy::voxel
