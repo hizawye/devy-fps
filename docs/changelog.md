@@ -441,3 +441,8 @@
 - Refreshed release-monitoring docs with another live liveness checkpoint (`2026-02-15T19:51:41Z`)
   confirming endurance (`chaos_cycles_completed=276`, `restart_runs_completed=46`) and queued
   follow-up/finalizer workers are still running and waiting as designed.
+- Generated final release notes for alpha cut: `docs/releases/v0.2.0-alpha-notes.md` (`v0.2.0-alpha-baseline..HEAD`).
+- Ran alpha release gate without endurance rerun and received `status=pass`:
+  - `artifacts/releases/alpha-gate/v0.2.0-alpha-final-20260219-160431/summary.txt`.
+- Ran standalone alpha acceptance confirmation and received `status=pass`:
+  - `artifacts/releases/alpha-acceptance/v0.2.0-alpha-final-20260219-160601/summary.txt`.

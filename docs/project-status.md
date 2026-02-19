@@ -1036,3 +1036,17 @@
   - None.
 - Next immediate starting point:
   - Run server/client in separate terminals with `config/server_test.json`.
+
+## Alpha Release Cut Update (2026-02-19)
+- Current progress:
+  - Generated final release notes at `docs/releases/v0.2.0-alpha-notes.md` from `v0.2.0-alpha-baseline..HEAD`.
+  - Executed `scripts/alpha-release-gate.sh v0.2.0-alpha config/server_test.json debug-vcpkg 8 8 480 artifacts/releases/alpha-gate/v0.2.0-alpha-final-20260219-160431 0 v0.2.0-alpha-baseline`.
+  - Gate summary (`artifacts/releases/alpha-gate/v0.2.0-alpha-final-20260219-160431/summary.txt`):
+    - `status=pass`, `acceptance_status=pass`, `endurance_status=skipped`, `release_notes_status=pass`, `missing_required_docs=0`.
+  - Executed standalone acceptance confirmation `DEVY_SKIP_BUILD=1 scripts/alpha-acceptance-pack.sh config/server_test.json artifacts/releases/alpha-acceptance/v0.2.0-alpha-final-20260219-160601 debug-vcpkg 8 8 1`.
+  - Acceptance summary (`artifacts/releases/alpha-acceptance/v0.2.0-alpha-final-20260219-160601/summary.txt`):
+    - `status=pass`, `regression_status=pass`, `profile_load_status=pass`, `chaos_drill_status=pass`, `restart_recovery_status=pass`.
+- Blockers/Bugs:
+  - None known locally for release cut.
+- Next immediate starting point:
+  - Create `chore(release): v0.2.0-alpha` commit + annotated tag, push `main` and tag, then verify required GitHub checks.
