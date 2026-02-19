@@ -8,16 +8,6 @@
 namespace devy::server {
 namespace {
 
-constexpr float kDefaultMaxSpeedUnitsPerSecond = 6.0F;
-constexpr float kInputMagnitudeEpsilon = 0.000001F;
-
-float sanitize_axis(float axis) {
-  if (!std::isfinite(axis)) {
-    return 0.0F;
-  }
-  return std::clamp(axis, -1.0F, 1.0F);
-}
-
 } // namespace
 
 MovementSimulation::MovementSimulation(MovementConfig config) : config_(sanitize_config(config)) {}
@@ -35,12 +25,6 @@ void MovementSimulation::remove_player(uint32_t player_id) { states_by_player_.e
 
 void MovementSimulation::apply_inputs(std::chrono::nanoseconds tick_interval,
                                       const std::vector<PlayerInputCommand>& inputs) {
-  for (auto& [player_id, state] : states_by_player_) {
-    static_cast<void>(player_id);
-    state.velocity_x = 0.0F;
-    state.velocity_y = 0.0F;
-  }
-
   if (tick_interval <= std::chrono::nanoseconds::zero()) {
     return;
   }
@@ -55,39 +39,37 @@ void MovementSimulation::apply_inputs(std::chrono::nanoseconds tick_interval,
   latest_input_by_player.reserve(inputs.size());
   for (const auto& input : inputs) {
     latest_input_by_player[input.player_id] = &input;
+    ensure_player(input.player_id);
   }
 
-  for (const auto& [player_id, input_ptr] : latest_input_by_player) {
-    if (!input_ptr) {
-      continue;
+  for (auto& [player_id, state] : states_by_player_) {
+    game::MovementInputIntent intent{};
+    auto input_it = latest_input_by_player.find(player_id);
+    if (input_it != latest_input_by_player.end() && input_it->second != nullptr) {
+      const PlayerInputCommand& input = *input_it->second;
+      intent.move_x = input.move_x;
+      intent.move_y = input.move_y;
+      intent.jump = input.jump;
+      intent.sprint = input.sprint;
+      intent.crouch = input.crouch;
+      if (input.input_seq > state.last_processed_input_seq) {
+        state.last_processed_input_seq = input.input_seq;
+      }
     }
 
-    ensure_player(player_id);
-    auto state_it = states_by_player_.find(player_id);
-    if (state_it == states_by_player_.end()) {
-      continue;
-    }
-    PlayerMotionState& state = state_it->second;
-
-    const float axis_x = sanitize_axis(input_ptr->move_x);
-    const float axis_y = sanitize_axis(input_ptr->move_y);
-    const double magnitude_sq = static_cast<double>(axis_x) * static_cast<double>(axis_x) +
-                                static_cast<double>(axis_y) * static_cast<double>(axis_y);
-
-    if (magnitude_sq > static_cast<double>(kInputMagnitudeEpsilon)) {
-      const float magnitude = static_cast<float>(std::sqrt(magnitude_sq));
-      const float axis_scale = (magnitude > 1.0F) ? (1.0F / magnitude) : 1.0F;
-      const float dir_x = axis_x * axis_scale;
-      const float dir_y = axis_y * axis_scale;
-      state.velocity_x = dir_x * config_.max_speed_units_per_second;
-      state.velocity_y = dir_y * config_.max_speed_units_per_second;
-      state.position_x += state.velocity_x * dt;
-      state.position_y += state.velocity_y * dt;
-    }
-
-    if (input_ptr->input_seq > state.last_processed_input_seq) {
-      state.last_processed_input_seq = input_ptr->input_seq;
-    }
+    const game::MovementKinematicState stepped = game::step_movement(
+        {state.position_x, state.position_y, state.velocity_x, state.velocity_y,
+         state.vertical_position, state.vertical_velocity, state.grounded, state.move_state},
+        intent, dt, config_.tuning);
+    state.position_x = stepped.position_x;
+    state.position_y = stepped.position_y;
+    state.velocity_x = stepped.velocity_x;
+    state.velocity_y = stepped.velocity_y;
+    state.speed = game::horizontal_speed(stepped);
+    state.grounded = stepped.grounded;
+    state.move_state = stepped.move_state;
+    state.vertical_position = stepped.vertical_position;
+    state.vertical_velocity = stepped.vertical_velocity;
   }
 }
 
@@ -115,10 +97,7 @@ std::vector<PlayerMotionState> MovementSimulation::snapshot() const {
 }
 
 MovementConfig MovementSimulation::sanitize_config(MovementConfig config) {
-  if (!std::isfinite(config.max_speed_units_per_second) ||
-      config.max_speed_units_per_second <= 0.0F) {
-    config.max_speed_units_per_second = kDefaultMaxSpeedUnitsPerSecond;
-  }
+  config.tuning = game::sanitize_movement_tuning(config.tuning);
   return config;
 }
 

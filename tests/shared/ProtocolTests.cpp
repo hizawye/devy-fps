@@ -147,6 +147,47 @@ TEST_CASE("Protocol parser validates heartbeat payload") {
   }
 }
 
+TEST_CASE("Protocol parser validates player_input movement-intent payload contract") {
+  SECTION("valid player_input payload with sprint/crouch is accepted") {
+    const ParseResult parsed = try_deserialize(R"({
+      "version": 1,
+      "type": 3,
+      "payload": {
+        "player_id": 4,
+        "input_seq": 12,
+        "move_x": 1.0,
+        "move_y": 0.0,
+        "jump": false,
+        "sprint": true,
+        "crouch": false,
+        "fire": false
+      }
+    })");
+
+    REQUIRE(parsed.ok());
+    REQUIRE(parsed.packet.type == MessageType::PlayerInput);
+    REQUIRE(parsed.packet.payload["sprint"] == true);
+  }
+
+  SECTION("missing required sprint/crouch fields is rejected") {
+    const ParseResult parsed = try_deserialize(R"({
+      "version": 1,
+      "type": 3,
+      "payload": {
+        "player_id": 4,
+        "input_seq": 12,
+        "move_x": 1.0,
+        "move_y": 0.0,
+        "jump": false,
+        "fire": false
+      }
+    })");
+
+    REQUIRE_FALSE(parsed.ok());
+    REQUIRE(parsed.error == ProtocolError::MissingPayloadField);
+  }
+}
+
 TEST_CASE("Protocol parser accepts state snapshots with reconciliation scaffolding fields") {
   const ParseResult parsed = try_deserialize(R"({
     "version": 1,

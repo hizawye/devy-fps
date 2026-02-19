@@ -107,6 +107,24 @@ server_log="${out_dir}/server.log"
 client_log="${out_dir}/load-client.log"
 summary_log="${out_dir}/summary.txt"
 
+wait_for_server_ready() {
+  local pid="$1"
+  local ready_port="$2"
+  local timeout_ms="${3:-3000}"
+  local waited_ms=0
+  while (( waited_ms < timeout_ms )); do
+    if ! kill -0 "${pid}" >/dev/null 2>&1; then
+      return 1
+    fi
+    if ss -lunH 2>/dev/null | grep -Eq ":${ready_port}[[:space:]]"; then
+      return 0
+    fi
+    sleep 0.05
+    waited_ms=$((waited_ms + 50))
+  done
+  return 1
+}
+
 port="$(grep -E '"port"\s*:\s*[0-9]+' "${config_path}" | head -n1 | sed -E 's/[^0-9]*([0-9]+).*/\1/')"
 if [[ -z "${port}" ]]; then
   port="7777"
@@ -124,18 +142,20 @@ trap cleanup EXIT
 server_smoke_seconds=$((seconds + 3))
 "${server_bin}" "${config_path}" --smoke-seconds "${server_smoke_seconds}" >"${server_log}" 2>&1 &
 server_pid="$!"
-
-sleep 0.3
-
-set +e
-"${load_client_bin}" --host 127.0.0.1 --port "${port}" --clients "${clients}" --seconds "${seconds}" \
-  --malformed-rate-hz "${malformed_rate_hz}" \
-  --malformed-family "${malformed_family}" \
-  --malformed-burst-size "${malformed_burst_size}" \
-  --disconnect-interval-ms "${disconnect_interval_ms}" \
-  --reconnect-delay-ms 150 >"${client_log}" 2>&1
-client_status=$?
-set -e
+client_status=1
+if wait_for_server_ready "${server_pid}" "${port}" 3000; then
+  set +e
+  "${load_client_bin}" --host 127.0.0.1 --port "${port}" --clients "${clients}" --seconds "${seconds}" \
+    --malformed-rate-hz "${malformed_rate_hz}" \
+    --malformed-family "${malformed_family}" \
+    --malformed-burst-size "${malformed_burst_size}" \
+    --disconnect-interval-ms "${disconnect_interval_ms}" \
+    --reconnect-delay-ms 150 >"${client_log}" 2>&1
+  client_status=$?
+  set -e
+else
+  echo "load_client skipped: server failed readiness check" >"${client_log}"
+fi
 
 set +e
 wait "${server_pid}"

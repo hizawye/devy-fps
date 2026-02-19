@@ -557,6 +557,8 @@ int main(int argc, char** argv) {
                                        {"move_x", move_x},
                                        {"move_y", move_y},
                                        {"jump", false},
+                                       {"sprint", false},
+                                       {"crouch", false},
                                        {"fire", false}},
                                       devy::net::kProtocolVersion};
         send_packet(bot.peer, input);

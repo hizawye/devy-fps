@@ -118,16 +118,33 @@ bool World::remove_chunk(int chunk_x, int chunk_y, int chunk_z) {
   return chunks_.erase(key) > 0U;
 }
 
-void World::generate(int chunks_x, int chunks_z, int max_height) {
+void World::generate(int chunks_x, int chunks_z, int max_height,
+                     GenerationProgressCallback on_progress) {
   clear();
   max_height_ = max_height;
 
-  int chunks_y = (max_height + kChunkSize - 1) / kChunkSize;
+  const int chunks_y = (max_height + kChunkSize - 1) / kChunkSize;
+  const std::size_t x_count = chunks_x > 0 ? static_cast<std::size_t>(chunks_x) : 0U;
+  const std::size_t z_count = chunks_z > 0 ? static_cast<std::size_t>(chunks_z) : 0U;
+  const std::size_t y_count = chunks_y > 0 ? static_cast<std::size_t>(chunks_y) : 0U;
+  const std::size_t total_chunks = x_count * z_count * y_count;
+  if (on_progress) {
+    on_progress(0U, total_chunks);
+  }
+  if (total_chunks == 0U) {
+    return;
+  }
+
+  std::size_t generated_chunks = 0U;
 
   for (int cy = 0; cy < chunks_y; ++cy) {
     for (int cz = 0; cz < chunks_z; ++cz) {
       for (int cx = 0; cx < chunks_x; ++cx) {
         static_cast<void>(ensure_generated_chunk(cx, cy, cz, max_height));
+        ++generated_chunks;
+        if (on_progress) {
+          on_progress(generated_chunks, total_chunks);
+        }
       }
     }
   }

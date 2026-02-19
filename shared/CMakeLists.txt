@@ -1,6 +1,7 @@
 add_library(shared
   src/Config.cpp
   src/Log.cpp
+  src/RuntimeServerInfo.cpp
   src/net/Protocol.cpp
   src/voxel/Chunk.cpp
   src/voxel/World.cpp
@@ -8,6 +9,7 @@ add_library(shared
   src/game/Treasure.cpp
   src/game/Inventory.cpp
   src/game/Match.cpp
+  src/game/Movement.cpp
 )
 
 target_include_directories(shared PUBLIC

@@ -1,5 +1,11 @@
 # Decision Log
 
+## 2026-02-19
+- Added reusable shared movement integration (`shared/game/Movement`) with configurable ground/air acceleration, friction, sprint/crouch speed multipliers, jump velocity, gravity, and move-state classification (`idle|walk|sprint|crouch|air`) so server simulation and client prediction use identical kinematic rules.
+- Extended runtime tuning surface to `runtime.movement` and `runtime.camera` blocks, keeping legacy `runtime.movement_speed_units_per_second` as a compatibility fallback while default configs migrate to explicit movement/camera fields.
+- Added `config/server_playable.json` as the interactive playability preset (`60Hz` tick, faster acceleration/friction, tuned jump/gravity, and camera/FOV smoothing defaults).
+- Updated synthetic load traffic in `tools/devy_load_client.cpp` to include `player_input.sprint` and `player_input.crouch` fields so profiling/reliability traffic remains protocol-compliant after schema hardening.
+
 ## 2026-02-15
 - Added `AGENTS.md` to establish autonomous workflow/state commands and local project metadata.
 - Chosen Phase 0 execution focus from `TODO.md`: deliver foundation guardrails and test harness before networking feature expansion.

@@ -6,13 +6,23 @@
 #include <deque>
 #include <optional>
 
+#include "shared/game/Movement.h"
+
 #include <nlohmann/json.hpp>
 
 namespace devy::client {
 
 struct PredictionConfig {
-  float max_speed_units_per_second{6.0F};
+  devy::game::MovementTuning movement_tuning{};
   std::size_t max_pending_inputs{256U};
+
+  PredictionConfig() = default;
+  PredictionConfig(float max_speed_units_per_second, std::size_t max_pending_inputs_arg)
+      : max_pending_inputs(max_pending_inputs_arg) {
+    movement_tuning.max_speed_walk_units_per_second = max_speed_units_per_second;
+  }
+  PredictionConfig(devy::game::MovementTuning tuning, std::size_t max_pending_inputs_arg)
+      : movement_tuning(tuning), max_pending_inputs(max_pending_inputs_arg) {}
 };
 
 struct PredictedMotionState {
@@ -20,6 +30,11 @@ struct PredictedMotionState {
   float position_y{0.0F};
   float velocity_x{0.0F};
   float velocity_y{0.0F};
+  float speed{0.0F};
+  bool grounded{true};
+  devy::game::MoveState move_state{devy::game::MoveState::Idle};
+  float vertical_position{0.0F};
+  float vertical_velocity{0.0F};
   uint32_t last_input_seq{0U};
 };
 
@@ -29,6 +44,11 @@ struct SnapshotMotionState {
   float position_y{0.0F};
   float velocity_x{0.0F};
   float velocity_y{0.0F};
+  float speed{0.0F};
+  bool grounded{true};
+  devy::game::MoveState move_state{devy::game::MoveState::Idle};
+  float vertical_position{0.0F};
+  float vertical_velocity{0.0F};
   uint32_t last_processed_input_seq{0U};
 };
 
@@ -44,8 +64,8 @@ public:
   explicit PredictionReconciler(PredictionConfig config = {});
 
   void reset();
-  uint32_t queue_local_input(float move_x, float move_y, bool jump, bool fire,
-                             std::chrono::nanoseconds dt);
+  uint32_t queue_local_input(float move_x, float move_y, bool jump, bool sprint, bool crouch,
+                             bool fire, std::chrono::nanoseconds dt);
   ReconciliationResult reconcile(const SnapshotMotionState& authoritative_state);
   std::optional<ReconciliationResult> consume_snapshot(const nlohmann::json& snapshot_payload,
                                                        uint32_t local_player_id);
@@ -64,12 +84,14 @@ private:
     float move_y{0.0F};
     bool jump{false};
     bool fire{false};
+    bool sprint{false};
+    bool crouch{false};
     std::chrono::nanoseconds dt{};
   };
 
   [[nodiscard]] static PredictionConfig sanitize_config(PredictionConfig config);
   static void apply_input(PredictedMotionState& state, const PendingInput& input,
-                          float max_speed_units_per_second);
+                          const devy::game::MovementTuning& tuning);
 
   PredictionConfig config_{};
   uint32_t next_input_seq_{1U};

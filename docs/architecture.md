@@ -48,7 +48,9 @@
   - `tick_rate_hz` (authoritative update cadence),
   - `snapshot_interval_ticks` (snapshot every N ticks),
   - `input_queue_capacity` (global pending input cap),
-  - `movement_speed_units_per_second` (authoritative horizontal movement speed).
+  - `movement` block (accel/friction/speed multipliers/jump/gravity tuning),
+  - `camera` block (mouse sensitivity, base FOV, sprint FOV bonus, eye-height smoothing),
+  - legacy fallback `movement_speed_units_per_second` remains accepted for backward compatibility.
 - Server config now includes optional `runtime.profiling` controls:
   - `enabled` (enable/disable runtime metrics emission),
   - `report_interval_ticks` (emit one profile report every N ticks),
@@ -107,7 +109,7 @@
 - Message schema table is centralized in `shared/src/net/Protocol.cpp` with required payload fields per message:
   - `join_request`: `player_name`
   - `join_accept`: `message`, `max_players`, `protocol_version`
-  - `player_input`: `player_id`, `input_seq`, `move_x`, `move_y`, `jump`, `fire`
+  - `player_input`: `player_id`, `input_seq`, `move_x`, `move_y`, `jump`, `sprint`, `crouch`, `fire`
   - `state_snapshot`: `tick`, `players`
   - `block_update`: `x`, `y`, `z`, `block_id` (+ optional `player_id`)
   - `inventory_update`: `player_id`, `coins`

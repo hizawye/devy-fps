@@ -26,6 +26,8 @@ struct PlayerInputCommand {
   bool jump{false};
   bool fire{false};
   RuntimeTimePoint received_at{};
+  bool sprint{false};
+  bool crouch{false};
 };
 
 enum class InputEnqueueStatus : uint8_t {
