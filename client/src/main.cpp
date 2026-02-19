@@ -465,8 +465,6 @@ int main(int argc, char** argv) {
   bool joined = false;
   bool fire_button_was_down = false;
   bool pickup_button_was_down = false;
-  std::string last_match_state = "unknown";
-  int last_match_seconds = -1;
   float smoothed_eye_y = 2.0F;
   float smoothed_fov = base_fov_degrees;
   std::string last_window_title = base_window_title;
