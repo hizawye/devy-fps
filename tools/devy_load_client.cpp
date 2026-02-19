@@ -1,4 +1,5 @@
 #include "shared/net/Protocol.h"
+#include "shared/voxel/WorldGenerationProfile.h"
 
 #include <enet/enet.h>
 
@@ -363,6 +364,27 @@ bool connect_bot(ENetHost* client_host, const ENetAddress& address, std::size_t 
   return true;
 }
 
+std::optional<uint32_t> parse_player_id_from_join_accept(const nlohmann::json& payload) {
+  if (!payload.contains("player_id")) {
+    return std::nullopt;
+  }
+
+  const auto& player_id_json = payload["player_id"];
+  if (player_id_json.is_number_unsigned()) {
+    const uint64_t raw = player_id_json.get<uint64_t>();
+    if (raw <= static_cast<uint64_t>(std::numeric_limits<uint32_t>::max())) {
+      return static_cast<uint32_t>(raw);
+    }
+  } else if (player_id_json.is_number_integer()) {
+    const int64_t raw = player_id_json.get<int64_t>();
+    if (raw >= 0 && raw <= static_cast<int64_t>(std::numeric_limits<uint32_t>::max())) {
+      return static_cast<uint32_t>(raw);
+    }
+  }
+
+  return std::nullopt;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -441,6 +463,9 @@ int main(int argc, char** argv) {
   std::size_t heartbeat_packets_sent = 0U;
   std::size_t malformed_packets_sent = 0U;
   std::size_t malformed_bursts_sent = 0U;
+  std::size_t join_accept_world_gen_valid = 0U;
+  std::size_t join_accept_world_gen_missing = 0U;
+  std::size_t join_accept_world_gen_invalid = 0U;
 
   while (std::chrono::steady_clock::now() < finish_at) {
     ENetEvent event{};
@@ -466,23 +491,29 @@ int main(int argc, char** argv) {
         std::string payload(reinterpret_cast<char*>(event.packet->data), event.packet->dataLength);
         const auto parsed = devy::net::try_deserialize(payload);
         if (parsed.ok() && parsed.packet.type == devy::net::MessageType::JoinAccept &&
-            parsed.packet.payload.value("accepted", false) &&
-            parsed.packet.payload.contains("player_id")) {
-          const auto& player_id_json = parsed.packet.payload["player_id"];
-          std::optional<uint32_t> parsed_player_id{};
-          if (player_id_json.is_number_unsigned()) {
-            const uint64_t raw = player_id_json.get<uint64_t>();
-            if (raw <= static_cast<uint64_t>(std::numeric_limits<uint32_t>::max())) {
-              parsed_player_id = static_cast<uint32_t>(raw);
-            }
-          } else if (player_id_json.is_number_integer()) {
-            const int64_t raw = player_id_json.get<int64_t>();
-            if (raw >= 0 && raw <= static_cast<int64_t>(std::numeric_limits<uint32_t>::max())) {
-              parsed_player_id = static_cast<uint32_t>(raw);
-            }
+            parsed.packet.payload.value("accepted", false)) {
+          const std::optional<uint32_t> parsed_player_id =
+              parse_player_id_from_join_accept(parsed.packet.payload);
+
+          const bool has_world_gen = parsed.packet.payload.contains("world_gen");
+          bool world_gen_valid = false;
+          if (has_world_gen) {
+            world_gen_valid = devy::voxel::world_generation_profile_from_json(
+                                  parsed.packet.payload["world_gen"])
+                                  .has_value();
           }
 
-          if (parsed_player_id.has_value() && !bot.joined) {
+          if (!has_world_gen) {
+            ++join_accept_world_gen_missing;
+            std::cerr << "Join accept missing world_gen payload for bot=" << bot.name << "\n";
+          } else if (!world_gen_valid) {
+            ++join_accept_world_gen_invalid;
+            std::cerr << "Join accept world_gen payload invalid for bot=" << bot.name << "\n";
+          } else {
+            ++join_accept_world_gen_valid;
+          }
+
+          if (parsed_player_id.has_value() && world_gen_valid && !bot.joined) {
             bot.player_id = parsed_player_id.value();
             bot.joined = true;
             bot.pending_reconnect = false;
@@ -492,6 +523,8 @@ int main(int argc, char** argv) {
             bot.next_heartbeat_at = now;
             bot.next_malformed_at = now;
             bot.next_disconnect_at = now + disconnect_interval.value_or(std::chrono::milliseconds::max());
+          } else if (!bot.joined && !world_gen_valid && bot.peer != nullptr) {
+            enet_peer_disconnect(bot.peer, 0U);
           }
         }
         enet_packet_destroy(event.packet);
@@ -623,8 +656,13 @@ int main(int argc, char** argv) {
             << " malformed_family=" << to_string(malformed_family.value())
             << " malformed_burst_size=" << config.malformed_burst_size
             << " malformed_bursts=" << malformed_bursts_sent
+            << " join_accept_world_gen_valid=" << join_accept_world_gen_valid
+            << " join_accept_world_gen_missing=" << join_accept_world_gen_missing
+            << " join_accept_world_gen_invalid=" << join_accept_world_gen_invalid
             << " heartbeats_sent=" << heartbeat_packets_sent
             << " inputs_sent=" << input_packets_sent << '\n';
 
-  return joined_count > 0U ? 0 : 1;
+  const bool world_gen_contract_ok =
+      join_accept_world_gen_missing == 0U && join_accept_world_gen_invalid == 0U;
+  return (joined_count > 0U && world_gen_contract_ok) ? 0 : 1;
 }

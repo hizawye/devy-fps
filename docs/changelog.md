@@ -441,6 +441,29 @@
 - Refreshed release-monitoring docs with another live liveness checkpoint (`2026-02-15T19:51:41Z`)
   confirming endurance (`chaos_cycles_completed=276`, `restart_runs_completed=46`) and queued
   follow-up/finalizer workers are still running and waiting as designed.
+
+### Validated
+- World-expansion release hardening completed locally on debug-vcpkg:
+  - full CTest pass via `scripts/test.sh debug` (`19/19`),
+  - targeted smoke/reliability drills passed with isolated config port (`/tmp/devy-server-test-27777.json`),
+  - evidence captured under:
+    - `artifacts/reliability/chaos/world-expansion-hardening-port27777/summary.txt`,
+    - `artifacts/reliability/restart-recovery/world-expansion-hardening-port27777/summary.txt`.
+- World-generation join contract hardening for synthetic load/reliability traffic:
+  - `tools/devy_load_client.cpp` now validates `join_accept.payload.world_gen` and fails on missing/invalid payloads,
+  - load-client summary now reports:
+    - `join_accept_world_gen_valid`,
+    - `join_accept_world_gen_missing`,
+    - `join_accept_world_gen_invalid`,
+  - reliability CTest wrappers now honor `DEVY_TEST_CONFIG_PATH` for isolated-port execution:
+    - `tests/scripts/assert-watchdog-restart.sh`,
+    - `tests/scripts/assert-chaos-drill.sh`,
+    - `tests/scripts/assert-restart-recovery.sh`,
+    - `tests/scripts/assert-reliability-soak.sh`,
+  - verification evidence captured under:
+    - `artifacts/telemetry/world-gen-assert-smoke/`,
+    - `artifacts/reliability/chaos/world-gen-assert-port27777/summary.txt`,
+    - `artifacts/releases/protocol-compat/world-gen-assert-port27777/summary.txt`.
 - Generated final release notes for alpha cut: `docs/releases/v0.2.0-alpha-notes.md` (`v0.2.0-alpha-baseline..HEAD`).
 - Ran alpha release gate without endurance rerun and received `status=pass`:
   - `artifacts/releases/alpha-gate/v0.2.0-alpha-final-20260219-160431/summary.txt`.

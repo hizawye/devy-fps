@@ -7,11 +7,12 @@ if [[ "$#" -lt 1 ]]; then
 fi
 
 repo_root="$1"
+config_path="${DEVY_TEST_CONFIG_PATH:-${repo_root}/config/server_test.json}"
 out_dir="${repo_root}/artifacts/reliability/ctest-restart-recovery"
 rm -rf "${out_dir}"
 
 "${repo_root}/scripts/restart-recovery.sh" \
-  "${repo_root}/config/server_test.json" \
+  "${config_path}" \
   4 \
   2 \
   "${out_dir}"

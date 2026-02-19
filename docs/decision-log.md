@@ -681,6 +681,12 @@
 - 2026-02-15: Added CI/reliability workflow apt bootstrap (`autoconf`, `autoconf-archive`, `automake`, `libtool`, `pkg-config`) before vcpkg invocation to remove host dependency drift in GitHub runners.
 - 2026-02-15: For merge-gate verification, treat isolated upstream vcpkg download `502` failures as transient CI infra flake; rerun failed jobs and require green rerun results before closing release-op TODO items.
 - 2026-02-15: For local Fedora handoff, rely on script auto-detection of `../vcpkg` and treat a full `scripts/configure.sh debug` + `scripts/build.sh debug` + `scripts/test.sh debug` pass (`19/19`) as sufficient readiness before asking the operator to run client/server terminals.
+- 2026-02-19: For world-expansion release hardening on shared developer hosts, run reliability drills on an isolated temporary config port when `17777` is occupied to avoid false-negative ENet bind failures.
+- 2026-02-19: Accepted the world-expansion merge hardening gate as: full `scripts/test.sh debug` pass (`19/19`) plus explicit smoke/chaos/restart evidence at `artifacts/reliability/*/world-expansion-hardening-port27777`.
+- 2026-02-19: Recorded runtime handshake validation strategy as static wire-path verification (`server` emits `world_gen`, `client` parses/sanitizes fallback) plus live join/reliability flow validation; deferred direct `world_gen` payload assertion in `devy_load_client` as a follow-up enhancement.
+- 2026-02-19: Closed the deferred handshake follow-up by enforcing `join_accept.payload.world_gen` validation in `tools/devy_load_client.cpp`; load runs now fail fast if `world_gen` is missing or invalid, making release/reliability scripts catch handshake-contract regressions automatically.
+- 2026-02-19: Added explicit join-contract observability counters in load-client output (`join_accept_world_gen_valid`, `join_accept_world_gen_missing`, `join_accept_world_gen_invalid`) so reliability artifacts show direct evidence that world-generation handshake payloads were validated at runtime.
+- 2026-02-19: Extended reliability CTest wrappers (`assert-watchdog-restart`, `assert-chaos-drill`, `assert-restart-recovery`, `assert-reliability-soak`) to honor `DEVY_TEST_CONFIG_PATH` so shared-host test runs can move to an isolated config port without patching scripts.
 
 ## 2026-02-19
 - Chosen alpha release-cut flow from the closed fast-path state using:
