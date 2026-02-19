@@ -12,11 +12,25 @@ Camera::Camera()
     yaw_(-90.0f),
     pitch_(-20.0f),
     speed_(12.0f),
-    sensitivity_(0.1f) {
+    sensitivity_(0.1f),
+    fov_degrees_(70.0f) {
 }
 
 void Camera::set_position(const glm::vec3& position) {
   position_ = position;
+}
+
+void Camera::set_sensitivity(float sensitivity) {
+  if (std::isfinite(sensitivity) && sensitivity > 0.0f) {
+    sensitivity_ = sensitivity;
+  }
+}
+
+void Camera::set_fov_degrees(float fov_degrees) {
+  if (!std::isfinite(fov_degrees)) {
+    return;
+  }
+  fov_degrees_ = std::clamp(fov_degrees, 45.0f, 120.0f);
 }
 
 void Camera::rotate(float yaw_delta, float pitch_delta) {
@@ -44,7 +58,7 @@ glm::mat4 Camera::view_matrix() const {
 }
 
 glm::mat4 Camera::proj_matrix(float aspect) const {
-  return glm::perspective(glm::radians(70.0f), aspect, 0.1f, 1000.0f);
+  return glm::perspective(glm::radians(fov_degrees_), aspect, 0.1f, 1000.0f);
 }
 
 const glm::vec3& Camera::position() const {

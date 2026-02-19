@@ -105,6 +105,24 @@ run_load_phase() {
   echo "${status}"
 }
 
+wait_for_server_ready() {
+  local pid="$1"
+  local ready_port="$2"
+  local timeout_ms="${3:-3000}"
+  local waited_ms=0
+  while (( waited_ms < timeout_ms )); do
+    if ! kill -0 "${pid}" >/dev/null 2>&1; then
+      return 1
+    fi
+    if ss -lunH 2>/dev/null | grep -Eq ":${ready_port}[[:space:]]"; then
+      return 0
+    fi
+    sleep 0.05
+    waited_ms=$((waited_ms + 50))
+  done
+  return 1
+}
+
 extract_joined() {
   local log_file="$1"
   local joined
@@ -116,8 +134,12 @@ phase_smoke_seconds=$((phase_seconds + 5))
 
 "${server_bin}" "${config_path}" --smoke-seconds "${phase_smoke_seconds}" >"${server_phase1_log}" 2>&1 &
 server_pid_phase1="$!"
-sleep 0.3
-phase1_status="$(run_load_phase "${client_phase1_log}")"
+if wait_for_server_ready "${server_pid_phase1}" "${port}" 3000; then
+  phase1_status="$(run_load_phase "${client_phase1_log}")"
+else
+  phase1_status="1"
+  echo "load_client skipped: server phase1 failed readiness check" >"${client_phase1_log}"
+fi
 phase1_joined="$(extract_joined "${client_phase1_log}")"
 
 kill "${server_pid_phase1}" >/dev/null 2>&1 || true
@@ -128,8 +150,12 @@ set -e
 
 "${server_bin}" "${config_path}" --smoke-seconds "${phase_smoke_seconds}" >"${server_phase2_log}" 2>&1 &
 server_pid_phase2="$!"
-sleep 0.3
-phase2_status="$(run_load_phase "${client_phase2_log}")"
+if wait_for_server_ready "${server_pid_phase2}" "${port}" 3000; then
+  phase2_status="$(run_load_phase "${client_phase2_log}")"
+else
+  phase2_status="1"
+  echo "load_client skipped: server phase2 failed readiness check" >"${client_phase2_log}"
+fi
 phase2_joined="$(extract_joined "${client_phase2_log}")"
 
 set +e

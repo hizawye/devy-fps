@@ -7,6 +7,7 @@
 #include "engine/Renderer.h"
 #include "shared/Config.h"
 #include "shared/Log.h"
+#include "shared/RuntimeServerInfo.h"
 #include "shared/game/Weapons.h"
 #include "shared/net/Protocol.h"
 #include "shared/voxel/World.h"
@@ -228,6 +229,35 @@ int main(int argc, char** argv) {
     port = 7777;
   }
   std::string host = server_config.value("host", std::string("127.0.0.1"));
+  bool connection_port_auto_discovery = false;
+  std::string connection_runtime_port_file{};
+  if (server_config.contains("connection") && server_config["connection"].is_object()) {
+    const auto& connection = server_config["connection"];
+    connection_port_auto_discovery =
+        connection.value("port_auto_discovery", connection_port_auto_discovery);
+    connection_runtime_port_file =
+        connection.value("runtime_port_file", connection_runtime_port_file);
+  }
+  if (connection_port_auto_discovery && connection_runtime_port_file.empty()) {
+    connection_runtime_port_file = "runtime/active-server.json";
+  }
+  if (connection_port_auto_discovery && !connection_runtime_port_file.empty()) {
+    const std::string runtime_port_path = resolve_path(connection_runtime_port_file);
+    std::string discovery_error{};
+    const auto discovered =
+        devy::runtime::read_active_server_info(runtime_port_path, &discovery_error);
+    if (discovered.has_value()) {
+      host = discovered->host;
+      port = static_cast<int>(discovered->port);
+      devy::log::write(Level::Info,
+                       "Discovered active server endpoint from " + runtime_port_path + ": " +
+                           host + ":" + std::to_string(port) + ".");
+    } else {
+      devy::log::write(Level::Warn,
+                       "Active server endpoint discovery unavailable from " + runtime_port_path +
+                           ": " + discovery_error + ". Using configured host/port.");
+    }
+  }
 
   int world_height = 256;
   int draw_distance_chunks = 8;
@@ -296,15 +326,70 @@ int main(int argc, char** argv) {
   const uint64_t heartbeat_interval_ms = static_cast<uint64_t>(
       std::max(100, std::min(2000, heartbeat_timeout_ms / 2)));
 
-  double movement_speed_units_per_second = 6.0;
+  devy::game::MovementTuning movement_tuning{};
+  float camera_sensitivity = 0.1F;
+  float base_fov_degrees = 70.0F;
+  float sprint_fov_bonus_degrees = 8.0F;
+  float camera_height_smoothing = 10.0F;
   if (server_config.contains("runtime") && server_config["runtime"].is_object()) {
-    movement_speed_units_per_second =
-        server_config["runtime"].value("movement_speed_units_per_second",
-                                       movement_speed_units_per_second);
+    const auto& runtime = server_config["runtime"];
+    const double legacy_movement_speed = runtime.value(
+        "movement_speed_units_per_second",
+        static_cast<double>(movement_tuning.max_speed_walk_units_per_second));
+    if (std::isfinite(legacy_movement_speed) && legacy_movement_speed > 0.0) {
+      movement_tuning.max_speed_walk_units_per_second = static_cast<float>(legacy_movement_speed);
+    }
+    if (runtime.contains("movement") && runtime["movement"].is_object()) {
+      const auto& movement = runtime["movement"];
+      movement_tuning.accel_ground_units_per_second2 =
+          static_cast<float>(movement.value("accel_ground",
+                                            movement_tuning.accel_ground_units_per_second2));
+      movement_tuning.accel_air_units_per_second2 =
+          static_cast<float>(movement.value("accel_air",
+                                            movement_tuning.accel_air_units_per_second2));
+      movement_tuning.friction_ground_units_per_second2 =
+          static_cast<float>(movement.value("friction_ground",
+                                            movement_tuning.friction_ground_units_per_second2));
+      movement_tuning.max_speed_walk_units_per_second =
+          static_cast<float>(movement.value("max_speed_walk",
+                                            movement_tuning.max_speed_walk_units_per_second));
+      movement_tuning.sprint_speed_multiplier =
+          static_cast<float>(movement.value("sprint_multiplier",
+                                            movement_tuning.sprint_speed_multiplier));
+      movement_tuning.crouch_speed_multiplier =
+          static_cast<float>(movement.value("crouch_multiplier",
+                                            movement_tuning.crouch_speed_multiplier));
+      movement_tuning.jump_velocity_units_per_second =
+          static_cast<float>(movement.value("jump_velocity",
+                                            movement_tuning.jump_velocity_units_per_second));
+      movement_tuning.gravity_units_per_second2 =
+          static_cast<float>(movement.value("gravity", movement_tuning.gravity_units_per_second2));
+    }
+    if (runtime.contains("camera") && runtime["camera"].is_object()) {
+      const auto& camera_cfg = runtime["camera"];
+      camera_sensitivity = static_cast<float>(
+          camera_cfg.value("mouse_sensitivity", static_cast<double>(camera_sensitivity)));
+      base_fov_degrees =
+          static_cast<float>(camera_cfg.value("base_fov_degrees", static_cast<double>(base_fov_degrees)));
+      sprint_fov_bonus_degrees = static_cast<float>(
+          camera_cfg.value("sprint_fov_bonus_degrees", static_cast<double>(sprint_fov_bonus_degrees)));
+      camera_height_smoothing = static_cast<float>(
+          camera_cfg.value("height_smoothing", static_cast<double>(camera_height_smoothing)));
+    }
   }
-  if (!std::isfinite(movement_speed_units_per_second) ||
-      movement_speed_units_per_second <= 0.0) {
-    movement_speed_units_per_second = 6.0;
+  movement_tuning = devy::game::sanitize_movement_tuning(movement_tuning);
+  if (!std::isfinite(camera_sensitivity) || camera_sensitivity <= 0.0F) {
+    camera_sensitivity = 0.1F;
+  }
+  if (!std::isfinite(base_fov_degrees) || base_fov_degrees < 45.0F || base_fov_degrees > 120.0F) {
+    base_fov_degrees = 70.0F;
+  }
+  if (!std::isfinite(sprint_fov_bonus_degrees) || sprint_fov_bonus_degrees < 0.0F ||
+      sprint_fov_bonus_degrees > 30.0F) {
+    sprint_fov_bonus_degrees = 8.0F;
+  }
+  if (!std::isfinite(camera_height_smoothing) || camera_height_smoothing <= 0.0F) {
+    camera_height_smoothing = 10.0F;
   }
 
   auto weapons = devy::game::load_weapons(resolve_path("config/weapons.json"));
@@ -325,6 +410,8 @@ int main(int argc, char** argv) {
       devy::voxel::sanitize_world_generation_profile(world_generation_profile);
   world.set_generation_profile(world_generation_profile);
   devy::engine::Camera camera{};
+  camera.set_sensitivity(camera_sensitivity);
+  camera.set_fov_degrees(base_fov_degrees);
   SDL_SetRelativeMouseMode(SDL_TRUE);
 
   if (enet_initialize() != 0) {
@@ -360,8 +447,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  devy::client::PredictionReconciler reconciler(
-      {static_cast<float>(movement_speed_units_per_second), 256U});
+  devy::client::PredictionReconciler reconciler({movement_tuning, 256U});
   devy::client::WeaponFireEmitter weapon_fire_emitter{};
   std::unordered_map<devy::voxel::ChunkCoord, uint32_t, devy::voxel::ChunkCoordHash>
       chunk_revisions{};
@@ -376,6 +462,8 @@ int main(int argc, char** argv) {
   bool pickup_button_was_down = false;
   std::string last_match_state = "unknown";
   int last_match_seconds = -1;
+  float smoothed_eye_y = 2.0F;
+  float smoothed_fov = base_fov_degrees;
 
   constexpr float fixed_dt_seconds = 1.0F / 60.0F;
   constexpr float pickup_max_distance_units = 3.0F;
@@ -462,6 +550,9 @@ int main(int argc, char** argv) {
           world.set_generation_profile(world_generation_profile);
           world.clear();
           renderer.clear();
+          smoothed_eye_y = 2.0F;
+          smoothed_fov = base_fov_degrees;
+          camera.set_fov_degrees(smoothed_fov);
           devy::log::write(Level::Info, "Join accepted player_id=" + std::to_string(local_player_id) + ".");
         } else if (parsed.packet.type == devy::net::MessageType::StateSnapshot) {
           if (!joined || local_player_id == 0U) {
@@ -574,8 +665,12 @@ int main(int argc, char** argv) {
       while (input_accumulator >= fixed_dt_seconds) {
         const auto [move_x, move_y] = input_move_axes(camera);
         const bool jump = devy::engine::Input::key_down(SDL_SCANCODE_SPACE);
+        const bool sprint = devy::engine::Input::key_down(SDL_SCANCODE_LSHIFT) ||
+                            devy::engine::Input::key_down(SDL_SCANCODE_RSHIFT);
+        const bool crouch = devy::engine::Input::key_down(SDL_SCANCODE_C);
         const uint32_t input_seq =
-            reconciler.queue_local_input(move_x, move_y, jump, false, fixed_dt_ns);
+            reconciler.queue_local_input(move_x, move_y, jump, sprint, crouch, false,
+                                         fixed_dt_ns);
 
         send_packet(server_peer,
                     {devy::net::MessageType::PlayerInput,
@@ -584,6 +679,8 @@ int main(int argc, char** argv) {
                       {"move_x", move_x},
                       {"move_y", move_y},
                       {"jump", jump},
+                      {"sprint", sprint},
+                      {"crouch", crouch},
                       {"fire", false}},
                      devy::net::kProtocolVersion});
         input_accumulator -= fixed_dt_seconds;
@@ -625,9 +722,26 @@ int main(int argc, char** argv) {
     const auto& predicted = reconciler.state();
     const int world_x = static_cast<int>(std::lround(predicted.position_x));
     const int world_z = static_cast<int>(std::lround(predicted.position_y));
-    const float eye_y =
+    const float base_eye_y =
         std::max(2.0F, static_cast<float>(world.height_at(world_x, world_z)) + 2.0F);
-    camera.set_position(glm::vec3(predicted.position_x, eye_y, predicted.position_y));
+    float head_bob = 0.0F;
+    if (predicted.grounded && predicted.speed > 0.15F) {
+      const float bob_phase = static_cast<float>(SDL_GetTicks64()) * 0.012F;
+      const float bob_scale = std::min(1.0F, predicted.speed / 6.0F);
+      head_bob = std::sin(bob_phase) * 0.06F * bob_scale;
+    }
+    const float desired_eye_y = base_eye_y + predicted.vertical_position + head_bob;
+    const float height_alpha = std::clamp(camera_height_smoothing * dt, 0.0F, 1.0F);
+    smoothed_eye_y += (desired_eye_y - smoothed_eye_y) * height_alpha;
+    camera.set_position(glm::vec3(predicted.position_x, smoothed_eye_y, predicted.position_y));
+
+    const float target_fov =
+        (predicted.move_state == devy::game::MoveState::Sprint && predicted.grounded)
+            ? (base_fov_degrees + sprint_fov_bonus_degrees)
+            : base_fov_degrees;
+    const float fov_alpha = std::clamp(8.0F * dt, 0.0F, 1.0F);
+    smoothed_fov += (target_fov - smoothed_fov) * fov_alpha;
+    camera.set_fov_degrees(smoothed_fov);
 
     int width = 0;
     int height = 0;

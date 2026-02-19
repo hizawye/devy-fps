@@ -95,7 +95,7 @@ const nlohmann::json* find_player(const nlohmann::json& snapshot, uint32_t playe
 TEST_CASE("Combat integration emits lethal damage broadcasts and snapshot reconciliation fields") {
   const RuntimeTimePoint t0{};
   AuthoritativeLoop loop({10U, 32U, 1U}, t0);
-  MovementSimulation movement({6.0F});
+  MovementSimulation movement(MovementConfig{6.0F});
   CombatSimulation combat(integration_weapon_fixture());
 
   const std::vector<std::pair<uint32_t, std::string>> players{
@@ -162,7 +162,7 @@ TEST_CASE("Combat integration emits lethal damage broadcasts and snapshot reconc
 TEST_CASE("Combat integration keeps projectile damage deferred until travel delay tick") {
   const RuntimeTimePoint t0{};
   AuthoritativeLoop loop({10U, 32U, 1U}, t0);
-  MovementSimulation movement({6.0F});
+  MovementSimulation movement(MovementConfig{6.0F});
   CombatSimulation combat(integration_weapon_fixture());
 
   const std::vector<std::pair<uint32_t, std::string>> players{

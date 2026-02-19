@@ -2,13 +2,23 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
+
 namespace devy::server {
 namespace {
+
+bool has_error_containing(const std::vector<std::string>& errors, const std::string& needle) {
+  return std::any_of(errors.begin(), errors.end(), [&](const std::string& error) {
+    return error.find(needle) != std::string::npos;
+  });
+}
 
 TEST_CASE("Server config validation accepts empty object and valid optional fields") {
   const nlohmann::json config = {
       {"max_players", 16},
       {"port", 7777},
+      {"connection",
+       {{"port_auto_discovery", true}, {"runtime_port_file", "runtime/server-playable.json"}}},
       {"loot_drop", "none"},
       {"runtime", {{"tick_rate_hz", 30}, {"snapshot_interval_ticks", 2}}},
       {"map",
@@ -44,6 +54,16 @@ TEST_CASE("Server config validation rejects invalid root type and field types") 
           std::string::npos);
 }
 
+TEST_CASE("Server config validation rejects invalid connection fields") {
+  const nlohmann::json invalid = {
+      {"connection", {{"port_auto_discovery", "yes"}, {"runtime_port_file", ""}}}};
+
+  const auto errors = validate_server_config(invalid);
+  REQUIRE(errors.size() == 2U);
+  REQUIRE(has_error_containing(errors, "connection.port_auto_discovery"));
+  REQUIRE(has_error_containing(errors, "connection.runtime_port_file"));
+}
+
 TEST_CASE("Server config validation rejects invalid runtime ranges and enum strings") {
   const nlohmann::json invalid = {
       {"loot_drop", "drop_everything"},
@@ -63,6 +83,34 @@ TEST_CASE("Server config validation rejects invalid runtime ranges and enum stri
   REQUIRE(errors.at(4).find("match.duration_seconds") != std::string::npos);
   REQUIRE(errors.at(5).find("match.respawns_per_player") != std::string::npos);
   REQUIRE(errors.at(6).find("map.draw_distance_chunks") != std::string::npos);
+}
+
+TEST_CASE("Server config validation rejects invalid runtime movement tuning values") {
+  const nlohmann::json invalid = {
+      {"runtime",
+       {{"movement", {{"accel_ground", 0.0}, {"friction_ground", -1.0}, {"jump_velocity", "high"}}}}}};
+
+  const auto errors = validate_server_config(invalid);
+  REQUIRE(errors.size() == 3U);
+  REQUIRE(has_error_containing(errors, "runtime.movement.accel_ground"));
+  REQUIRE(has_error_containing(errors, "runtime.movement.friction_ground"));
+  REQUIRE(has_error_containing(errors, "runtime.movement.jump_velocity"));
+}
+
+TEST_CASE("Server config validation rejects invalid runtime camera tuning values") {
+  const nlohmann::json invalid = {{"runtime",
+                                   {{"camera",
+                                     {{"mouse_sensitivity", 0.0},
+                                      {"base_fov_degrees", "wide"},
+                                      {"sprint_fov_bonus_degrees", -1.0},
+                                      {"height_smoothing", -2.0}}}}}};
+
+  const auto errors = validate_server_config(invalid);
+  REQUIRE(errors.size() == 4U);
+  REQUIRE(has_error_containing(errors, "runtime.camera.mouse_sensitivity"));
+  REQUIRE(has_error_containing(errors, "runtime.camera.base_fov_degrees"));
+  REQUIRE(has_error_containing(errors, "runtime.camera.sprint_fov_bonus_degrees"));
+  REQUIRE(has_error_containing(errors, "runtime.camera.height_smoothing"));
 }
 
 TEST_CASE("Server config validation rejects invalid map world expansion fields") {

@@ -34,13 +34,25 @@ Or use raw preset commands:
 You can pass a config path to either executable:
 - `./build/client/devy_client config/server_120.json`
 - `./build/server/devy_server config/server_120.json`
+- `./build/server/devy_server config/server_playable.json`
+- `./build/server/devy_server config/server_playable_fast.json`
+- `./build/client/devy_client config/server_playable.json`
+- `./build/client/devy_client config/server_playable_fast.json`
 - `./build/server/devy_server config/server_test.json --smoke-seconds 2`
+
+For fast local gameplay iteration, use `config/server_playable_fast.json`.
+`config/server_playable.json` keeps the larger world scale and can take noticeably longer
+to finish initial world generation on startup.
+Playable configs now enable `connection.port_auto_discovery=true`: if the configured port is in use,
+the server auto-selects the next available port and writes the active endpoint file under `runtime/`.
+When the client is launched with the same config, it reads that file and connects to the discovered port.
 
 ## Testing
 - Unit tests: `shared.unit` (Catch2)
 - Unit tests: `client.unit` (Catch2 client prediction/reconciliation coverage)
 - Unit tests: `server.unit` (Catch2 server runtime coverage: session lifecycle + authoritative loop + movement simulation + block interaction + world replication)
 - Server smoke test: `server.smoke` (headless ENet boot + timed shutdown)
+- Port fallback smoke test: `server.smoke.port_fallback` (intentional port collision + auto-discovery verification)
 - Invalid-config boot tests:
   - `server.config.invalid_tick_rate`
   - `server.config.invalid_loot_drop`
@@ -146,6 +158,8 @@ You can pass a config path to either executable:
 - Interactive client now uses authoritative networking for join/heartbeat/input/fire/pickup intent
   flow, consumes authoritative gameplay outputs (`damage_event`, `death_event`, `inventory_update`,
   `match_state`), and applies replicated `chunk_sync` world updates.
+- Connection auto-discovery supports local iteration: `connection.runtime_port_file` is published by
+  server startup and consumed by client startup when `connection.port_auto_discovery=true`.
 
 ## Controls (Current)
 - WASD: move

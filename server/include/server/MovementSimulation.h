@@ -1,6 +1,7 @@
 #pragma once
 
 #include "server/AuthoritativeLoop.h"
+#include "shared/game/Movement.h"
 
 #include <chrono>
 #include <cstdint>
@@ -11,7 +12,13 @@
 namespace devy::server {
 
 struct MovementConfig {
-  float max_speed_units_per_second{6.0F};
+  devy::game::MovementTuning tuning{};
+
+  MovementConfig() = default;
+  explicit MovementConfig(float max_speed_units_per_second) {
+    tuning.max_speed_walk_units_per_second = max_speed_units_per_second;
+  }
+  explicit MovementConfig(devy::game::MovementTuning movement_tuning) : tuning(movement_tuning) {}
 };
 
 struct PlayerMotionState {
@@ -20,6 +27,11 @@ struct PlayerMotionState {
   float position_y{0.0F};
   float velocity_x{0.0F};
   float velocity_y{0.0F};
+  float speed{0.0F};
+  bool grounded{true};
+  devy::game::MoveState move_state{devy::game::MoveState::Idle};
+  float vertical_position{0.0F};
+  float vertical_velocity{0.0F};
   uint32_t last_processed_input_seq{0};
 };
 

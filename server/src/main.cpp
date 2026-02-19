@@ -12,6 +12,7 @@
 #include "server/WorldReplication.h"
 #include "shared/Config.h"
 #include "shared/Log.h"
+#include "shared/RuntimeServerInfo.h"
 #include "shared/game/Treasure.h"
 #include "shared/game/Weapons.h"
 #include "shared/net/Protocol.h"
@@ -23,6 +24,7 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <csignal>
 #include <cstdint>
 #include <filesystem>
@@ -344,6 +346,18 @@ int main(int argc, char** argv) {
 
   int max_players = config.value("max_players", 64);
   int port = config.value("port", 7777);
+  bool connection_port_auto_discovery = false;
+  std::string connection_runtime_port_file{};
+  if (config.contains("connection") && config["connection"].is_object()) {
+    const auto& connection = config["connection"];
+    connection_port_auto_discovery =
+        connection.value("port_auto_discovery", connection_port_auto_discovery);
+    connection_runtime_port_file =
+        connection.value("runtime_port_file", connection_runtime_port_file);
+  }
+  if (connection_port_auto_discovery && connection_runtime_port_file.empty()) {
+    connection_runtime_port_file = "runtime/active-server.json";
+  }
   if (max_players <= 0) {
     devy::log::write(devy::log::Level::Warn, "Invalid max_players; using 64.");
     max_players = 64;
@@ -360,7 +374,7 @@ int main(int argc, char** argv) {
   int tick_rate_hz = 30;
   int snapshot_interval_ticks = 2;
   int input_queue_capacity = 2048;
-  double movement_speed_units_per_second = 6.0;
+  devy::game::MovementTuning runtime_movement_tuning{};
   bool runtime_profiling_enabled = true;
   int runtime_profiling_report_interval_ticks = 300;
   int runtime_profiling_history_size_ticks = 600;
@@ -376,8 +390,33 @@ int main(int argc, char** argv) {
     snapshot_interval_ticks =
         config["runtime"].value("snapshot_interval_ticks", snapshot_interval_ticks);
     input_queue_capacity = config["runtime"].value("input_queue_capacity", input_queue_capacity);
-    movement_speed_units_per_second =
-        config["runtime"].value("movement_speed_units_per_second", movement_speed_units_per_second);
+    const double legacy_movement_speed =
+        config["runtime"].value("movement_speed_units_per_second",
+                                static_cast<double>(
+                                    runtime_movement_tuning.max_speed_walk_units_per_second));
+    if (std::isfinite(legacy_movement_speed) && legacy_movement_speed > 0.0) {
+      runtime_movement_tuning.max_speed_walk_units_per_second =
+          static_cast<float>(legacy_movement_speed);
+    }
+    if (config["runtime"].contains("movement") && config["runtime"]["movement"].is_object()) {
+      const auto& movement = config["runtime"]["movement"];
+      runtime_movement_tuning.accel_ground_units_per_second2 = static_cast<float>(
+          movement.value("accel_ground", runtime_movement_tuning.accel_ground_units_per_second2));
+      runtime_movement_tuning.accel_air_units_per_second2 = static_cast<float>(
+          movement.value("accel_air", runtime_movement_tuning.accel_air_units_per_second2));
+      runtime_movement_tuning.friction_ground_units_per_second2 = static_cast<float>(movement.value(
+          "friction_ground", runtime_movement_tuning.friction_ground_units_per_second2));
+      runtime_movement_tuning.max_speed_walk_units_per_second = static_cast<float>(
+          movement.value("max_speed_walk", runtime_movement_tuning.max_speed_walk_units_per_second));
+      runtime_movement_tuning.sprint_speed_multiplier = static_cast<float>(
+          movement.value("sprint_multiplier", runtime_movement_tuning.sprint_speed_multiplier));
+      runtime_movement_tuning.crouch_speed_multiplier = static_cast<float>(
+          movement.value("crouch_multiplier", runtime_movement_tuning.crouch_speed_multiplier));
+      runtime_movement_tuning.jump_velocity_units_per_second = static_cast<float>(
+          movement.value("jump_velocity", runtime_movement_tuning.jump_velocity_units_per_second));
+      runtime_movement_tuning.gravity_units_per_second2 = static_cast<float>(
+          movement.value("gravity", runtime_movement_tuning.gravity_units_per_second2));
+    }
     runtime_match_state_broadcast_on_snapshot = config["runtime"].value(
         "match_state_broadcast_on_snapshot", runtime_match_state_broadcast_on_snapshot);
     runtime_snapshot_include_match_scoreboard = config["runtime"].value(
@@ -416,10 +455,7 @@ int main(int argc, char** argv) {
     devy::log::write(devy::log::Level::Warn, "Invalid input queue capacity; using 2048.");
     input_queue_capacity = 2048;
   }
-  if (!std::isfinite(movement_speed_units_per_second) || movement_speed_units_per_second <= 0.0) {
-    devy::log::write(devy::log::Level::Warn, "Invalid movement speed; using 6.0 units/sec.");
-    movement_speed_units_per_second = 6.0;
-  }
+  runtime_movement_tuning = devy::game::sanitize_movement_tuning(runtime_movement_tuning);
   if (runtime_profiling_report_interval_ticks <= 0) {
     devy::log::write(devy::log::Level::Warn,
                      "Invalid runtime profiling report interval; using 300 ticks.");
@@ -701,8 +737,56 @@ int main(int argc, char** argv) {
   const nlohmann::json world_generation_payload =
       devy::voxel::world_generation_profile_to_json(world_generation_profile);
 
+  const std::size_t world_chunks_x = static_cast<std::size_t>(std::max(0, map_chunks_x));
+  const std::size_t world_chunks_z = static_cast<std::size_t>(std::max(0, map_chunks_z));
+  const std::size_t world_chunks_y = static_cast<std::size_t>(std::max(0, map_chunks_y));
+  const std::size_t world_chunk_total = world_chunks_x * world_chunks_z * world_chunks_y;
+  devy::log::write(devy::log::Level::Info, "Loaded server config: " + config_path + ".");
+  devy::log::write(devy::log::Level::Info,
+                   "World generation starting: chunks=(" + std::to_string(map_chunks_x) + "x" +
+                       std::to_string(map_chunks_y) + "x" + std::to_string(map_chunks_z) +
+                       "), world_height=" + std::to_string(map_world_height) +
+                       ", total_chunks=" + std::to_string(world_chunk_total) + ".");
+
   devy::voxel::World world{};
-  world.generate(map_chunks_x, map_chunks_z, map_world_height, world_generation_profile);
+  const auto world_generation_started = std::chrono::steady_clock::now();
+  int progress_bucket = -1;
+  world.generate(
+      map_chunks_x, map_chunks_z, map_world_height, world_generation_profile,
+      [&](std::size_t generated_chunks, std::size_t total_chunks) {
+        if (total_chunks == 0U) {
+          if (progress_bucket < 0) {
+            progress_bucket = 20;
+            devy::log::write(devy::log::Level::Info,
+                             "World generation progress: 100% (0/0) elapsed_ms=0.");
+          }
+          return;
+        }
+
+        const int bucket = static_cast<int>((generated_chunks * 20U) / total_chunks);
+        if (generated_chunks != total_chunks && bucket <= progress_bucket) {
+          return;
+        }
+        progress_bucket = bucket;
+
+        const int percent = static_cast<int>((generated_chunks * 100U) / total_chunks);
+        const auto elapsed_ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - world_generation_started)
+                .count();
+        devy::log::write(devy::log::Level::Info,
+                         "World generation progress: " + std::to_string(percent) + "% (" +
+                             std::to_string(generated_chunks) + "/" +
+                             std::to_string(total_chunks) +
+                             ") elapsed_ms=" + std::to_string(elapsed_ms) + ".");
+      });
+  const auto world_generation_ms =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::steady_clock::now() - world_generation_started)
+          .count();
+  devy::log::write(devy::log::Level::Info,
+                   "World generation completed in " + std::to_string(world_generation_ms) +
+                       " ms; generated_chunks=" + std::to_string(world.chunks().size()) + ".");
 
   std::unordered_set<devy::voxel::BlockId> valid_block_ids{static_cast<devy::voxel::BlockId>(0U)};
   const auto blocks_config = devy::config::load_json(resolve_path("config/blocks.json"));
@@ -743,17 +827,71 @@ int main(int argc, char** argv) {
 
   ENetAddress address{};
   address.host = ENET_HOST_ANY;
-  address.port = static_cast<enet_uint16>(port);
+  int bound_port = port;
+  const auto try_bind_port = [&](int candidate_port) -> ENetHost* {
+    address.port = static_cast<enet_uint16>(candidate_port);
+    return enet_host_create(&address, static_cast<size_t>(max_players), static_cast<size_t>(2), 0,
+                            0);
+  };
 
-  ENetHost* server =
-      enet_host_create(&address, static_cast<size_t>(max_players), static_cast<size_t>(2), 0, 0);
+  ENetHost* server = try_bind_port(bound_port);
+  if (!server && connection_port_auto_discovery) {
+    constexpr int kPortSearchWindow = 32;
+    for (int offset = 1; offset <= kPortSearchWindow; ++offset) {
+      const int candidate_port = port + offset;
+      if (candidate_port > static_cast<int>(std::numeric_limits<uint16_t>::max())) {
+        break;
+      }
+      server = try_bind_port(candidate_port);
+      if (server != nullptr) {
+        bound_port = candidate_port;
+        devy::log::write(
+            devy::log::Level::Warn,
+            "Primary configured port " + std::to_string(port) + " unavailable; using port " +
+                std::to_string(bound_port) + ".");
+        break;
+      }
+    }
+  }
+
   if (!server) {
-    devy::log::write(devy::log::Level::Error, "Failed to create ENet server.");
+    devy::log::write(
+        devy::log::Level::Error,
+        "Failed to create ENet server on configured port " + std::to_string(port) +
+            ". Check whether another server instance is already bound to this port.");
     enet_deinitialize();
     return 1;
   }
 
-  devy::log::write(devy::log::Level::Info, "Server started on port " + std::to_string(port) + ".");
+  std::optional<devy::runtime::ServerEndpointInfo> published_runtime_endpoint{};
+  if (!connection_runtime_port_file.empty()) {
+    devy::runtime::ServerEndpointInfo endpoint{};
+    endpoint.host = "127.0.0.1";
+    endpoint.port = static_cast<uint16_t>(bound_port);
+    endpoint.config_path = config_path;
+    const auto started_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::system_clock::now().time_since_epoch())
+                                .count();
+    if (started_ms > 0) {
+      endpoint.started_at_unix_ms = static_cast<uint64_t>(started_ms);
+    }
+
+    std::string endpoint_error{};
+    if (devy::runtime::write_active_server_info(connection_runtime_port_file, endpoint,
+                                                &endpoint_error)) {
+      published_runtime_endpoint = endpoint;
+      devy::log::write(devy::log::Level::Info,
+                       "Published active server endpoint file: " +
+                           connection_runtime_port_file + ".");
+    } else {
+      devy::log::write(devy::log::Level::Warn,
+                       "Failed to publish active server endpoint file `" +
+                           connection_runtime_port_file + "`: " + endpoint_error + ".");
+    }
+  }
+
+  devy::log::write(devy::log::Level::Info,
+                   "Server started on port " + std::to_string(bound_port) + ".");
   devy::log::write(devy::log::Level::Info,
                    "Session heartbeat timeout: " + std::to_string(heartbeat_timeout_ms) + " ms.");
   devy::log::write(devy::log::Level::Info,
@@ -763,9 +901,22 @@ int main(int argc, char** argv) {
                                                " tick(s).");
   devy::log::write(devy::log::Level::Info,
                    "Input queue capacity: " + std::to_string(input_queue_capacity) + " packets.");
-  devy::log::write(devy::log::Level::Info,
-                   "Movement speed: " + std::to_string(movement_speed_units_per_second) +
-                       " units/sec.");
+  devy::log::write(
+      devy::log::Level::Info,
+      "Movement tuning: walk_speed=" +
+          std::to_string(runtime_movement_tuning.max_speed_walk_units_per_second) +
+          " accel_ground=" +
+          std::to_string(runtime_movement_tuning.accel_ground_units_per_second2) +
+          " accel_air=" + std::to_string(runtime_movement_tuning.accel_air_units_per_second2) +
+          " friction_ground=" +
+          std::to_string(runtime_movement_tuning.friction_ground_units_per_second2) +
+          " sprint_multiplier=" +
+          std::to_string(runtime_movement_tuning.sprint_speed_multiplier) +
+          " crouch_multiplier=" +
+          std::to_string(runtime_movement_tuning.crouch_speed_multiplier) +
+          " jump_velocity=" +
+          std::to_string(runtime_movement_tuning.jump_velocity_units_per_second) +
+          " gravity=" + std::to_string(runtime_movement_tuning.gravity_units_per_second2) + ".");
   devy::log::write(
       devy::log::Level::Info,
       std::string("Runtime profiling: ") + (runtime_profiling_enabled ? "enabled" : "disabled") +
@@ -844,7 +995,7 @@ int main(int argc, char** argv) {
        static_cast<uint32_t>(snapshot_interval_ticks)},
       std::chrono::steady_clock::now());
   devy::server::MovementSimulation movement_simulation(
-      {static_cast<float>(movement_speed_units_per_second)});
+      devy::server::MovementConfig{runtime_movement_tuning});
   devy::server::WorldReplication world_replication(
       {map_chunks_x, map_chunks_y, map_chunks_z, map_draw_distance_chunks});
   devy::server::BlockInteraction block_interaction({std::move(valid_block_ids)});
@@ -1051,6 +1202,8 @@ int main(int argc, char** argv) {
               input.move_x = move_x.value();
               input.move_y = move_y.value();
               input.jump = parsed.packet.payload["jump"].get<bool>();
+              input.sprint = parsed.packet.payload["sprint"].get<bool>();
+              input.crouch = parsed.packet.payload["crouch"].get<bool>();
               input.fire = parsed.packet.payload["fire"].get<bool>();
               input.received_at = now;
               const auto enqueue_status = authoritative_loop.enqueue_input(input);
@@ -1433,6 +1586,11 @@ int main(int argc, char** argv) {
         float position_y{0.0F};
         float velocity_x{0.0F};
         float velocity_y{0.0F};
+        float speed{0.0F};
+        bool grounded{true};
+        devy::game::MoveState move_state{devy::game::MoveState::Idle};
+        float vertical_position{0.0F};
+        float vertical_velocity{0.0F};
         uint32_t last_processed_input_seq{0U};
         int health{0};
         bool alive{true};
@@ -1451,20 +1609,12 @@ int main(int argc, char** argv) {
           static_cast<std::size_t>(max_players) + 1U, -1);
       for (std::size_t session_index = 0; session_index < active_sessions.size(); ++session_index) {
         const auto& session = active_sessions[session_index];
-        snapshot_players.push_back({session.player_id, 0.0F,
-                                    0.0F,
-                                    0.0F,
-                                    0.0F,
-                                    0U,
-                                    combat_starting_health,
-                                    true,
-                                    0U,
-                                    0,
-                                    0,
-                                    0U,
-                                    0U,
-                                    static_cast<uint32_t>(match_respawns_per_player),
-                                    false});
+        SnapshotPlayerView player{};
+        player.player_id = session.player_id;
+        player.health = combat_starting_health;
+        player.alive = true;
+        player.respawns_remaining = static_cast<uint32_t>(match_respawns_per_player);
+        snapshot_players.push_back(player);
         if (session.player_id < session_index_by_player_id.size()) {
           session_index_by_player_id[session.player_id] = static_cast<int32_t>(session_index);
         }
@@ -1483,6 +1633,11 @@ int main(int argc, char** argv) {
         player.position_y = state.position_y;
         player.velocity_x = state.velocity_x;
         player.velocity_y = state.velocity_y;
+        player.speed = state.speed;
+        player.grounded = state.grounded;
+        player.move_state = state.move_state;
+        player.vertical_position = state.vertical_position;
+        player.vertical_velocity = state.vertical_velocity;
         player.last_processed_input_seq = state.last_processed_input_seq;
       }
       for (const auto& state : combat_states) {
@@ -1536,6 +1691,11 @@ int main(int argc, char** argv) {
                            {"player_name", session.player_name},
                            {"position", {{"x", player.position_x}, {"y", player.position_y}}},
                            {"velocity", {{"x", player.velocity_x}, {"y", player.velocity_y}}},
+                           {"speed", player.speed},
+                           {"grounded", player.grounded},
+                           {"move_state", devy::game::to_string(player.move_state)},
+                           {"vertical_position", player.vertical_position},
+                           {"vertical_velocity", player.vertical_velocity},
                            {"last_processed_input_seq", player.last_processed_input_seq},
                            {"health", player.health},
                            {"alive", player.alive},
@@ -1608,6 +1768,27 @@ int main(int argc, char** argv) {
 
   enet_host_destroy(server);
   enet_deinitialize();
+  if (published_runtime_endpoint.has_value()) {
+    std::string read_error{};
+    const auto active_endpoint =
+        devy::runtime::read_active_server_info(connection_runtime_port_file, &read_error);
+    if (active_endpoint.has_value() &&
+        active_endpoint->port == published_runtime_endpoint->port &&
+        active_endpoint->started_at_unix_ms ==
+            published_runtime_endpoint->started_at_unix_ms &&
+        active_endpoint->config_path == published_runtime_endpoint->config_path) {
+      std::string remove_error{};
+      if (!devy::runtime::remove_active_server_info(connection_runtime_port_file, &remove_error)) {
+        devy::log::write(devy::log::Level::Warn,
+                         "Failed to remove active server endpoint file `" +
+                             connection_runtime_port_file + "`: " + remove_error + ".");
+      }
+    } else if (!read_error.empty()) {
+      devy::log::write(devy::log::Level::Warn,
+                       "Skipped active server endpoint cleanup for `" +
+                           connection_runtime_port_file + "`: " + read_error + ".");
+    }
+  }
   devy::log::write(devy::log::Level::Info, "Server stopped.");
   return 0;
 }

@@ -3,7 +3,10 @@ find_package(Catch2 CONFIG REQUIRED)
 add_executable(shared_unit_tests
   shared/InventoryTests.cpp
   shared/MatchTests.cpp
+  shared/MovementTests.cpp
   shared/ProtocolTests.cpp
+  shared/RuntimeServerInfoTests.cpp
+  shared/WorldTests.cpp
   shared/WorldGenerationProfileTests.cpp
   shared/WeaponsTests.cpp
 )
@@ -57,6 +60,22 @@ add_test(
           ${CMAKE_SOURCE_DIR}
 )
 set_tests_properties(server.smoke PROPERTIES TIMEOUT 15)
+
+add_test(
+  NAME server.smoke.playable_fast
+  COMMAND ${CMAKE_COMMAND} -E env
+          DEVY_TEST_CONFIG_PATH=${CMAKE_SOURCE_DIR}/config/server_playable_fast_smoke.json
+          ${CMAKE_SOURCE_DIR}/tests/scripts/assert-server-smoke.sh
+          ${CMAKE_SOURCE_DIR}
+)
+set_tests_properties(server.smoke.playable_fast PROPERTIES TIMEOUT 20)
+
+add_test(
+  NAME server.smoke.port_fallback
+  COMMAND ${CMAKE_SOURCE_DIR}/tests/scripts/assert-server-port-fallback-smoke.sh
+          ${CMAKE_SOURCE_DIR}
+)
+set_tests_properties(server.smoke.port_fallback PROPERTIES TIMEOUT 40)
 
 add_test(
   NAME server.telemetry.alert_dry_run

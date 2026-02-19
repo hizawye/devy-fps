@@ -13,7 +13,7 @@
   - added runtime-focused unit tests for tick drift horizon, queue overflow handling, deterministic ordering, and snapshot cadence.
 - Completed a Phase 2 M2.1 implementation slice (authoritative movement):
   - added `server::MovementSimulation` for deterministic server-side movement integration from tick-drained inputs,
-  - normalized/clamped movement vectors and applied configurable speed (`runtime.movement_speed_units_per_second`),
+  - normalized/clamped movement vectors and applied configurable runtime tuning (`runtime.movement.*` with legacy `runtime.movement_speed_units_per_second` fallback),
   - tracked per-player `last_processed_input_seq` acknowledgements for reconciliation scaffolding,
   - integrated movement simulation into server tick execution and `state_snapshot` payloads (position/velocity/ack fields),
   - added runtime-focused unit tests in `tests/server/MovementSimulationTests.cpp`.

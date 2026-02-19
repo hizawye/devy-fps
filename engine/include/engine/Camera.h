@@ -9,6 +9,8 @@ public:
   Camera();
 
   void set_position(const glm::vec3& position);
+  void set_sensitivity(float sensitivity);
+  void set_fov_degrees(float fov_degrees);
   void rotate(float yaw_delta, float pitch_delta);
   void move(const glm::vec3& direction, float delta_seconds, float speed_multiplier);
 
@@ -28,6 +30,7 @@ private:
   float pitch_;
   float speed_;
   float sensitivity_;
+  float fov_degrees_;
 };
 
 } // namespace devy::engine

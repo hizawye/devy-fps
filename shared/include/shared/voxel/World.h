@@ -3,6 +3,8 @@
 #include "shared/voxel/Chunk.h"
 #include "shared/voxel/WorldGenerationProfile.h"
 
+#include <cstddef>
+#include <functional>
 #include <optional>
 #include <unordered_map>
 #include <vector>
@@ -30,12 +32,20 @@ struct ChunkCoordHash {
 
 class World {
 public:
+  using GenerationProgressCallback = std::function<void(std::size_t generated_chunks,
+                                                        std::size_t total_chunks)>;
+
   World();
 
   void clear();
   void generate(int chunks_x, int chunks_z, int max_height);
   void generate(int chunks_x, int chunks_z, int max_height,
                 const WorldGenerationProfile& generation_profile);
+  void generate(int chunks_x, int chunks_z, int max_height,
+                GenerationProgressCallback on_progress);
+  void generate(int chunks_x, int chunks_z, int max_height,
+                const WorldGenerationProfile& generation_profile,
+                GenerationProgressCallback on_progress);
   Chunk& ensure_generated_chunk(int chunk_x, int chunk_y, int chunk_z, int max_height);
   bool remove_chunk(int chunk_x, int chunk_y, int chunk_z);
   int height_at(int world_x, int world_z) const;

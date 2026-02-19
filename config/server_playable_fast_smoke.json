@@ -1,59 +1,50 @@
 {
   "mode": "ffa",
-  "match_time_minutes": 120,
-  "port": 7777,
+  "match_time_minutes": 60,
+  "port": 17778,
+  "connection": {
+    "port_auto_discovery": true,
+    "runtime_port_file": "runtime/server-playable-fast-smoke.json"
+  },
   "map": {
-    "size_km2": 8,
-    "chunks_x": 88,
-    "chunks_z": 88,
+    "size_km2": 1,
+    "chunks_x": 16,
+    "chunks_z": 16,
     "chunk_size": 32,
-    "world_height": 256,
-    "preview_chunks": 8,
-    "draw_distance_chunks": 8,
-    "world_seed": 1337,
-    "world_expansion": {
-      "enabled": true,
-      "poi_density": "medium",
-      "placement": {
-        "cell_size_chunks": 4,
-        "jitter_units": 24,
-        "min_poi_spacing_units": 96
-      },
-      "poi_types": {
-        "outpost": true,
-        "ruins": true,
-        "loot_shrine": true
-      },
-      "loot_bias_multiplier": 1.25
-    }
+    "world_height": 96,
+    "preview_chunks": 4,
+    "draw_distance_chunks": 6
   },
   "max_players": 64,
+  "session": {
+    "heartbeat_timeout_ms": 10000
+  },
   "runtime": {
-    "tick_rate_hz": 30,
+    "tick_rate_hz": 60,
     "snapshot_interval_ticks": 2,
-    "input_queue_capacity": 2048,
+    "input_queue_capacity": 4096,
     "movement": {
-      "accel_ground": 48.0,
-      "accel_air": 16.0,
-      "friction_ground": 20.0,
-      "max_speed_walk": 6.0,
+      "accel_ground": 84.0,
+      "accel_air": 28.0,
+      "friction_ground": 32.0,
+      "max_speed_walk": 6.5,
       "sprint_multiplier": 1.5,
-      "crouch_multiplier": 0.55,
-      "jump_velocity": 7.5,
-      "gravity": 22.0
+      "crouch_multiplier": 0.6,
+      "jump_velocity": 8.4,
+      "gravity": 28.0
     },
     "camera": {
-      "mouse_sensitivity": 0.1,
-      "base_fov_degrees": 70.0,
-      "sprint_fov_bonus_degrees": 8.0,
-      "height_smoothing": 10.0
+      "mouse_sensitivity": 0.115,
+      "base_fov_degrees": 76.0,
+      "sprint_fov_bonus_degrees": 12.0,
+      "height_smoothing": 16.0
     },
     "match_state_broadcast_on_snapshot": false,
     "snapshot_include_match_scoreboard": false,
     "profiling": {
       "enabled": true,
-      "report_interval_ticks": 300,
-      "history_size_ticks": 600,
+      "report_interval_ticks": 600,
+      "history_size_ticks": 1200,
       "tick_lag_tolerance_ms": 0.5,
       "alerts": {
         "max_tick_lag_rate": 1.0,
@@ -81,7 +72,7 @@
   },
   "match": {
     "pre_match_seconds": 5,
-    "duration_seconds": 7200,
+    "duration_seconds": 3600,
     "respawns_per_player": 2,
     "respawn_delay_seconds": 3,
     "min_players_to_start": 2

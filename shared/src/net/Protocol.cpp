@@ -29,6 +29,8 @@ constexpr FieldRule kPlayerInputFields[] = {
   {"move_x", PayloadFieldType::Number, true},
   {"move_y", PayloadFieldType::Number, true},
   {"jump", PayloadFieldType::Boolean, true},
+  {"sprint", PayloadFieldType::Boolean, true},
+  {"crouch", PayloadFieldType::Boolean, true},
   {"fire", PayloadFieldType::Boolean, true}
 };
 

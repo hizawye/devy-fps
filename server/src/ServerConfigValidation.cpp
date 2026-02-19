@@ -204,6 +204,16 @@ std::vector<std::string> validate_server_config(const nlohmann::json& config) {
   if (port.present && port.valid && (port.value <= 0 || port.value > 65535)) {
     add_error(errors, "port", "must be between 1 and 65535.");
   }
+  if (const auto* connection = read_object_field(config, "connection", "connection", errors);
+      connection != nullptr) {
+    static_cast<void>(read_bool_field(*connection, "port_auto_discovery",
+                                      "connection.port_auto_discovery", errors));
+    const auto runtime_port_file =
+        read_string_field(*connection, "runtime_port_file", "connection.runtime_port_file", errors);
+    if (runtime_port_file.present && runtime_port_file.valid && runtime_port_file.value.empty()) {
+      add_error(errors, "connection.runtime_port_file", "must not be empty.");
+    }
+  }
 
   const auto loot_drop = read_string_field(config, "loot_drop", "loot_drop", errors);
   if (loot_drop.present && loot_drop.valid) {
@@ -225,6 +235,32 @@ std::vector<std::string> validate_server_config(const nlohmann::json& config) {
     validate_positive_integer(*runtime, "input_queue_capacity", "runtime.input_queue_capacity", errors);
     validate_positive_number(*runtime, "movement_speed_units_per_second",
                              "runtime.movement_speed_units_per_second", errors);
+    if (const auto* movement = read_object_field(*runtime, "movement", "runtime.movement", errors);
+        movement != nullptr) {
+      validate_positive_number(*movement, "accel_ground", "runtime.movement.accel_ground", errors);
+      validate_positive_number(*movement, "accel_air", "runtime.movement.accel_air", errors);
+      validate_non_negative_number(*movement, "friction_ground", "runtime.movement.friction_ground",
+                                   errors);
+      validate_positive_number(*movement, "max_speed_walk", "runtime.movement.max_speed_walk",
+                               errors);
+      validate_positive_number(*movement, "sprint_multiplier",
+                               "runtime.movement.sprint_multiplier", errors);
+      validate_positive_number(*movement, "crouch_multiplier",
+                               "runtime.movement.crouch_multiplier", errors);
+      validate_positive_number(*movement, "jump_velocity", "runtime.movement.jump_velocity", errors);
+      validate_positive_number(*movement, "gravity", "runtime.movement.gravity", errors);
+    }
+    if (const auto* camera = read_object_field(*runtime, "camera", "runtime.camera", errors);
+        camera != nullptr) {
+      validate_positive_number(*camera, "mouse_sensitivity", "runtime.camera.mouse_sensitivity",
+                               errors);
+      validate_positive_number(*camera, "base_fov_degrees", "runtime.camera.base_fov_degrees",
+                               errors);
+      validate_non_negative_number(*camera, "sprint_fov_bonus_degrees",
+                                   "runtime.camera.sprint_fov_bonus_degrees", errors);
+      validate_positive_number(*camera, "height_smoothing", "runtime.camera.height_smoothing",
+                               errors);
+    }
     static_cast<void>(read_bool_field(*runtime, "match_state_broadcast_on_snapshot",
                                       "runtime.match_state_broadcast_on_snapshot", errors));
     static_cast<void>(read_bool_field(*runtime, "snapshot_include_match_scoreboard",

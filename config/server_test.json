@@ -35,7 +35,22 @@
     "tick_rate_hz": 20,
     "snapshot_interval_ticks": 2,
     "input_queue_capacity": 256,
-    "movement_speed_units_per_second": 6.0,
+    "movement": {
+      "accel_ground": 48.0,
+      "accel_air": 16.0,
+      "friction_ground": 20.0,
+      "max_speed_walk": 6.0,
+      "sprint_multiplier": 1.5,
+      "crouch_multiplier": 0.55,
+      "jump_velocity": 7.5,
+      "gravity": 22.0
+    },
+    "camera": {
+      "mouse_sensitivity": 0.1,
+      "base_fov_degrees": 70.0,
+      "sprint_fov_bonus_degrees": 8.0,
+      "height_smoothing": 10.0
+    },
     "match_state_broadcast_on_snapshot": false,
     "snapshot_include_match_scoreboard": false,
     "profiling": {

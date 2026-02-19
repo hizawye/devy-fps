@@ -22,6 +22,7 @@ void write(Level level, const std::string& message) {
   std::lock_guard<std::mutex> lock(log_mutex);
   std::ostream& out = (level == Level::Error) ? std::cerr : std::cout;
   out << "[" << level_label(level) << "] " << message << '\n';
+  out.flush();
 }
 
 } // namespace devy::log
