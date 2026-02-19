@@ -9,7 +9,7 @@ namespace devy::server {
 namespace {
 
 std::vector<devy::game::TreasureDefinition> loot_fixture() {
-  return {{"coins", 10, 1, "common"}, {"relic", 100, 4, "rare"}};
+  return {{"coins", 10, 1, "common"}, {"relic", 90, 5, "rare"}};
 }
 
 std::vector<PlayerMotionState> make_motion(uint32_t player_id, float x, float y) {
@@ -84,6 +84,37 @@ TEST_CASE("Inventory loot rejects duplicate and over-capacity pickup requests") 
   REQUIRE(capacity_tick.pickup_results.size() == 1U);
   REQUIRE(capacity_tick.pickup_results.front().status ==
           TreasurePickupResolveStatus::InventoryCapacityExceeded);
+}
+
+TEST_CASE("Inventory loot enforces per-player weight limits deterministically") {
+  InventoryLootSimulation simulation(
+      loot_fixture(),
+      {1U, 8U, 64U, 1.0F, 8U, 5, LootDropMode::All, 64, 64, 0.75F});
+
+  simulation.ensure_player(1U);
+
+  const auto spawn_tick_1 = simulation.resolve_tick(1U, make_motion(1U, 54.5F, 18.5F), make_alive(1U), {});
+  REQUIRE(spawn_tick_1.spawned.size() == 1U);
+  REQUIRE(spawn_tick_1.spawned.front().spawn_id == 1U);
+
+  REQUIRE(simulation.enqueue_pickup({1U, 1U, 1U, RuntimeTimePoint{}}) ==
+          TreasurePickupEnqueueStatus::Accepted);
+  const auto collect_coin_tick =
+      simulation.resolve_tick(2U, make_motion(1U, 54.5F, 18.5F), make_alive(1U), {});
+  REQUIRE(collect_coin_tick.pickup_results.size() == 1U);
+  REQUIRE(collect_coin_tick.pickup_results.front().status == TreasurePickupResolveStatus::Collected);
+  REQUIRE(collect_coin_tick.pickup_results.front().total_weight == 1);
+
+  REQUIRE(simulation.enqueue_pickup({1U, 2U, 2U, RuntimeTimePoint{}}) ==
+          TreasurePickupEnqueueStatus::Accepted);
+  const auto weight_limit_tick =
+      simulation.resolve_tick(3U, make_motion(1U, 27.5F, 7.5F), make_alive(1U), {});
+  REQUIRE(weight_limit_tick.pickup_results.size() == 1U);
+  REQUIRE(weight_limit_tick.pickup_results.front().status ==
+          TreasurePickupResolveStatus::WeightLimitExceeded);
+  REQUIRE(weight_limit_tick.pickup_results.front().total_weight == 1);
+
+  REQUIRE(weight_limit_tick.inventory_deltas.empty());
 }
 
 TEST_CASE("Inventory loot drop-on-death clears victim inventory and respawns loot") {

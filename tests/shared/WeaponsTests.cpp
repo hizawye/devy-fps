@@ -39,13 +39,13 @@ TEST_CASE("Weapon config definitions produce sane DPS values by tier") {
   }
 
   REQUIRE(weapon_dps(by_id.at("pistol")) ==
-          Catch::Approx(77.0).margin(0.0001));
+          Catch::Approx(68.0).margin(0.0001));
   REQUIRE(weapon_dps(by_id.at("rifle")) ==
-          Catch::Approx(195.0).margin(0.0001));
+          Catch::Approx(96.0).margin(0.0001));
   REQUIRE(weapon_dps(by_id.at("shotgun")) ==
-          Catch::Approx(76.8).margin(0.0001));
+          Catch::Approx(86.4).margin(0.0001));
   REQUIRE(weapon_dps(by_id.at("railgun")) ==
-          Catch::Approx(63.0).margin(0.0001));
+          Catch::Approx(68.0).margin(0.0001));
 }
 
 } // namespace

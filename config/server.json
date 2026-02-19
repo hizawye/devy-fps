@@ -1,6 +1,6 @@
 {
   "mode": "ffa",
-  "match_time_minutes": 60,
+  "match_time_minutes": 30,
   "port": 7777,
   "map": {
     "size_km2": 4,
@@ -59,9 +59,9 @@
       "history_size_ticks": 600,
       "tick_lag_tolerance_ms": 0.5,
       "alerts": {
-        "max_tick_lag_rate": 1.0,
-        "max_packet_drop_rate": 1.0,
-        "max_parse_error_rate": 1.0,
+        "max_tick_lag_rate": 0.10,
+        "max_packet_drop_rate": 0.20,
+        "max_parse_error_rate": 0.10,
         "min_active_players": 0
       }
     }
@@ -74,19 +74,19 @@
     "hit_radius_units": 0.75
   },
   "inventory": {
-    "spawn_interval_ticks": 90,
-    "max_active_spawns": 64,
+    "spawn_interval_ticks": 75,
+    "max_active_spawns": 48,
     "pickup_queue_capacity": 2048,
-    "pickup_radius_units": 2.5,
-    "max_items_per_player": 16,
-    "max_weight_per_player": 40,
+    "pickup_radius_units": 2.25,
+    "max_items_per_player": 12,
+    "max_weight_per_player": 32,
     "death_drop_spread_units": 0.75
   },
   "match": {
-    "pre_match_seconds": 5,
-    "duration_seconds": 3600,
+    "pre_match_seconds": 3,
+    "duration_seconds": 1800,
     "respawns_per_player": 2,
-    "respawn_delay_seconds": 3,
+    "respawn_delay_seconds": 2,
     "min_players_to_start": 2
   },
   "team_size": 1,

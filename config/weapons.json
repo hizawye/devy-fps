@@ -3,8 +3,8 @@
     {
       "id": "pistol",
       "type": "hitscan",
-      "damage": 22,
-      "rate_of_fire": 3.5,
+      "damage": 20,
+      "rate_of_fire": 3.4,
       "mag_size": 12,
       "range_units": 72.0,
       "tier": 1
@@ -12,8 +12,8 @@
     {
       "id": "rifle",
       "type": "hitscan",
-      "damage": 30,
-      "rate_of_fire": 6.5,
+      "damage": 24,
+      "rate_of_fire": 4.0,
       "mag_size": 30,
       "range_units": 110.0,
       "tier": 2
@@ -22,7 +22,7 @@
       "id": "shotgun",
       "type": "projectile",
       "pellets": 8,
-      "damage_per_pellet": 8,
+      "damage_per_pellet": 9,
       "rate_of_fire": 1.2,
       "mag_size": 6,
       "range_units": 45.0,
@@ -32,8 +32,8 @@
     {
       "id": "railgun",
       "type": "hitscan",
-      "damage": 90,
-      "rate_of_fire": 0.7,
+      "damage": 85,
+      "rate_of_fire": 0.8,
       "mag_size": 4,
       "range_units": 180.0,
       "tier": 3

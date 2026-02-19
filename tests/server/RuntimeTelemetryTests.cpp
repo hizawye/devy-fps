@@ -105,6 +105,73 @@ TEST_CASE("Runtime telemetry stays silent when disabled") {
   REQUIRE_FALSE(telemetry.end_tick(t0 + std::chrono::milliseconds(1)).has_value());
 }
 
+TEST_CASE("Runtime telemetry calibrated thresholds avoid noise and flag sustained fault rates") {
+  RuntimeTelemetry telemetry({true, 20U, 20U, 0.0, {0.10, 0.20, 0.10, 0U}});
+  telemetry.set_tick_budget(std::chrono::milliseconds(10));
+  const auto t0 = std::chrono::steady_clock::time_point{};
+
+  for (uint64_t tick = 1U; tick <= 20U; ++tick) {
+    const auto started_at = t0 + std::chrono::milliseconds(static_cast<int64_t>(tick) * 20);
+    telemetry.begin_tick(tick, started_at);
+    telemetry.note_resources({6U, 0U, 0U, 0U, 0U});
+    telemetry.note_inbound_packet_received();
+    if (tick <= 2U) {
+      telemetry.note_inbound_packet_drop(false);
+    } else if (tick == 3U) {
+      telemetry.note_inbound_packet_drop(true);
+    }
+
+    const auto elapsed =
+        (tick == 1U) ? std::chrono::milliseconds(11) : std::chrono::milliseconds(10);
+    const auto report = telemetry.end_tick(started_at + elapsed);
+    if (tick < 20U) {
+      REQUIRE_FALSE(report.has_value());
+      continue;
+    }
+
+    REQUIRE(report.has_value());
+    REQUIRE(report->tick_lag_rate == Catch::Approx(0.05));
+    REQUIRE(report->inbound_packet_drop_rate == Catch::Approx(0.15));
+    REQUIRE(report->inbound_parse_error_rate == Catch::Approx(0.05));
+    REQUIRE(report->alerts.empty());
+  }
+
+  for (uint64_t tick = 21U; tick <= 40U; ++tick) {
+    const auto started_at = t0 + std::chrono::milliseconds(static_cast<int64_t>(tick) * 20);
+    const uint64_t window_tick = tick - 20U;
+    telemetry.begin_tick(tick, started_at);
+    telemetry.note_resources({6U, 0U, 0U, 0U, 0U});
+    telemetry.note_inbound_packet_received();
+    if (window_tick <= 3U) {
+      telemetry.note_inbound_packet_drop(true);
+    } else if (window_tick <= 5U) {
+      telemetry.note_inbound_packet_drop(false);
+    }
+
+    const auto elapsed =
+        (window_tick <= 3U) ? std::chrono::milliseconds(11) : std::chrono::milliseconds(10);
+    const auto report = telemetry.end_tick(started_at + elapsed);
+    if (tick < 40U) {
+      REQUIRE_FALSE(report.has_value());
+      continue;
+    }
+
+    REQUIRE(report.has_value());
+    REQUIRE(report->tick_lag_rate == Catch::Approx(0.15));
+    REQUIRE(report->inbound_packet_drop_rate == Catch::Approx(0.25));
+    REQUIRE(report->inbound_parse_error_rate == Catch::Approx(0.15));
+    REQUIRE(report->alerts.size() == 3U);
+    REQUIRE(std::find(report->alerts.begin(), report->alerts.end(),
+                      "tick_lag_rate_exceeded") != report->alerts.end());
+    REQUIRE(std::find(report->alerts.begin(), report->alerts.end(),
+                      "packet_drop_rate_exceeded") != report->alerts.end());
+    REQUIRE(std::find(report->alerts.begin(), report->alerts.end(),
+                      "parse_error_rate_exceeded") != report->alerts.end());
+    REQUIRE(std::find(report->alerts.begin(), report->alerts.end(),
+                      "active_players_below_min") == report->alerts.end());
+  }
+}
+
 TEST_CASE("Runtime telemetry reports diagnostics counters and threshold alerts") {
   RuntimeTelemetry telemetry({true, 4U, 4U, 0.0, {0.20, 0.30, 0.20, 2U}});
   telemetry.set_tick_budget(std::chrono::milliseconds(10));

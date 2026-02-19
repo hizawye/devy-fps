@@ -11,10 +11,10 @@ namespace {
 
 std::vector<devy::game::WeaponDefinition> weapon_fixture() {
   return {
-      {"pistol", "hitscan", 22, 12, 3.5F, 0, 0, 72.0F, 0.0F, 1},
-      {"rifle", "hitscan", 30, 30, 6.5F, 0, 0, 110.0F, 0.0F, 2},
-      {"shotgun", "projectile", 0, 6, 1.2F, 8, 8, 45.0F, 35.0F, 2},
-      {"railgun", "hitscan", 90, 4, 0.7F, 0, 0, 180.0F, 0.0F, 3},
+      {"pistol", "hitscan", 20, 12, 3.4F, 0, 0, 72.0F, 0.0F, 1},
+      {"rifle", "hitscan", 24, 30, 4.0F, 0, 0, 110.0F, 0.0F, 2},
+      {"shotgun", "projectile", 0, 6, 1.2F, 8, 9, 45.0F, 35.0F, 2},
+      {"railgun", "hitscan", 85, 4, 0.8F, 0, 0, 180.0F, 0.0F, 3},
   };
 }
 
@@ -29,7 +29,7 @@ TEST_CASE("Combat simulation applies damage and emits lethal death events") {
           FireEnqueueStatus::Accepted);
   const auto tick_1 = simulation.resolve_tick(1U, std::chrono::milliseconds(100));
   REQUIRE(tick_1.damage_events.size() == 1U);
-  REQUIRE(tick_1.damage_events.front().damage == 22);
+  REQUIRE(tick_1.damage_events.front().damage == 20);
   REQUIRE_FALSE(tick_1.damage_events.front().lethal);
   REQUIRE(tick_1.death_events.empty());
 
@@ -72,10 +72,10 @@ TEST_CASE("Combat simulation resolves same-tick fire in deterministic attacker o
   const auto tick = simulation.resolve_tick(1U, std::chrono::milliseconds(100));
   REQUIRE(tick.damage_events.size() == 2U);
   REQUIRE(tick.damage_events[0].attacker_id == 2U);
-  REQUIRE(tick.damage_events[0].damage == 22);
+  REQUIRE(tick.damage_events[0].damage == 20);
   REQUIRE_FALSE(tick.damage_events[0].lethal);
   REQUIRE(tick.damage_events[1].attacker_id == 3U);
-  REQUIRE(tick.damage_events[1].damage == 90);
+  REQUIRE(tick.damage_events[1].damage == 85);
   REQUIRE(tick.damage_events[1].lethal);
   REQUIRE(tick.death_events.size() == 1U);
   REQUIRE(tick.death_events.front().killer_id == 3U);
@@ -99,7 +99,7 @@ TEST_CASE("Combat simulation delays projectile damage for high-latency travel wi
     const auto result = simulation.resolve_tick(tick, std::chrono::milliseconds(50));
     if (!result.damage_events.empty()) {
       first_hit_tick = tick;
-      REQUIRE(result.damage_events.front().damage == 64);
+      REQUIRE(result.damage_events.front().damage == 72);
       REQUIRE(result.damage_events.front().victim_id == 2U);
       break;
     }

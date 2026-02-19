@@ -1,8 +1,8 @@
 {
   "treasures": [
     { "id": "coins", "value": 10, "weight": 1, "rarity": "common" },
-    { "id": "relic", "value": 100, "weight": 4, "rarity": "rare" },
-    { "id": "artifact", "value": 250, "weight": 6, "rarity": "epic" },
-    { "id": "core_shard", "value": 500, "weight": 8, "rarity": "legendary" }
+    { "id": "relic", "value": 90, "weight": 5, "rarity": "rare" },
+    { "id": "artifact", "value": 220, "weight": 8, "rarity": "epic" },
+    { "id": "core_shard", "value": 420, "weight": 12, "rarity": "legendary" }
   ]
 }

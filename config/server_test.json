@@ -59,9 +59,9 @@
       "history_size_ticks": 40,
       "tick_lag_tolerance_ms": 0.5,
       "alerts": {
-        "max_tick_lag_rate": 1.0,
-        "max_packet_drop_rate": 1.0,
-        "max_parse_error_rate": 1.0,
+        "max_tick_lag_rate": 0.10,
+        "max_packet_drop_rate": 0.20,
+        "max_parse_error_rate": 0.10,
         "min_active_players": 0
       }
     }
@@ -74,12 +74,12 @@
     "hit_radius_units": 0.75
   },
   "inventory": {
-    "spawn_interval_ticks": 20,
-    "max_active_spawns": 24,
+    "spawn_interval_ticks": 16,
+    "max_active_spawns": 18,
     "pickup_queue_capacity": 256,
-    "pickup_radius_units": 2.5,
-    "max_items_per_player": 16,
-    "max_weight_per_player": 40,
+    "pickup_radius_units": 2.25,
+    "max_items_per_player": 10,
+    "max_weight_per_player": 28,
     "death_drop_spread_units": 0.75
   },
   "match": {

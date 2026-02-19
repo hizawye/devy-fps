@@ -41,6 +41,8 @@ target_link_libraries(server_unit_tests PRIVATE
 add_test(NAME server.unit COMMAND server_unit_tests)
 
 add_executable(client_unit_tests
+  client/AuthoritativeEventFeedTests.cpp
+  client/AuthoritativeHudModelTests.cpp
   client/ChunkSyncApplierTests.cpp
   client/PredictionReconcilerTests.cpp
   client/WeaponFireEmitterTests.cpp
